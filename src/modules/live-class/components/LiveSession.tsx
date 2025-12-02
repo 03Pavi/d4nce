@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
-import { Box, Button, Typography, TextField, Chip } from '@mui/material'
+import { Box, Button, Typography, TextField, Chip, Container } from '@mui/material'
 import { Send, Videocam, Mic, VideocamOff } from '@mui/icons-material'
 import { useLiveStream } from '../hooks/useLiveStream'
 
@@ -49,7 +49,8 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false }: Live
     }
 
     return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'black', position: 'relative' }}>
+        <Container maxWidth="lg" disableGutters sx={{ height: '100%' }}>
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'black', position: 'relative' }}>
             {/* Video Area */}
             <Box sx={{ flex: 1, bgcolor: '#222', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
                 {/* Mock Video Feed */}
@@ -146,6 +147,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false }: Live
                     </Button>
                 </Box>
             </Box>
-        </Box>
+            </Box>
+        </Container>
     )
 }

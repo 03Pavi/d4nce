@@ -2,14 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
-// Dynamically import PeerJS to avoid SSR issues
-let Peer: any;
-if (typeof window !== 'undefined') {
-  import('peerjs').then((module) => {
-    Peer = module.default;
-  });
-}
-
 export const useLiveStream = (role: 'admin' | 'student', channelName: string = 'room-1') => {
   const [peerId, setPeerId] = useState<string>('');
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -20,34 +12,40 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
 
   useEffect(() => {
     const init = async () => {
-      if (!Peer) {
-        const module = await import('peerjs');
-        Peer = module.default;
-      }
+      // Only run on client side
+      if (typeof window === 'undefined') return;
 
-      const myId = uuidv4();
-      const peer = new Peer(myId);
-      peerRef.current = peer;
+      try {
+        // Dynamically import PeerJS
+        const PeerModule = await import('peerjs');
+        const Peer = PeerModule.default || PeerModule;
 
-      peer.on('open', (id: string) => {
-        setPeerId(id);
-        joinChannel(id);
-      });
+        const myId = uuidv4();
+        const peer = new Peer(myId);
+        peerRef.current = peer;
 
-      if (role === 'admin') {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          setLocalStream(stream);
+        peer.on('open', (id: string) => {
+          setPeerId(id);
+          joinChannel(id);
+        });
 
-          // Answer incoming calls
-          peer.on('call', (call: any) => {
-            call.answer(stream);
-          });
-        } catch (err) {
-          console.error('Failed to get local stream', err);
+        if (role === 'admin') {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            setLocalStream(stream);
+
+            // Answer incoming calls
+            peer.on('call', (call: any) => {
+              call.answer(stream);
+            });
+          } catch (err) {
+            console.error('Failed to get local stream', err);
+          }
+        } else {
+          // Student: Wait for admin peer ID from presence
         }
-      } else {
-        // Student: Wait for admin peer ID from presence
+      } catch (err) {
+        console.error('Failed to initialize PeerJS:', err);
       }
     };
 
@@ -80,21 +78,6 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
     const connectToAdmin = (adminPeerId: string) => {
       if (isConnected || !peerRef.current) return;
 
-      const call = peerRef.current.call(adminPeerId, new MediaStream()); // Send empty stream or nothing
-      // Actually, for one-way viewing, we just want to receive.
-      // But PeerJS requires a stream to answer usually? No, answer(stream) is enough.
-      // The caller doesn't need to send a stream.
-
-      // Wait, if I call without stream, the other side answers with stream.
-      // peer.call(id, stream) -> stream is optional? No, it's required in TS usually.
-      // Let's pass a dummy stream or null if allowed.
-      // Actually, let's just pass a dummy audio track if needed, or check docs.
-      // Standard WebRTC allows offer to receive only.
-      // PeerJS `call` signature: call(peer, stream, [options]).
-      // We can pass a dummy stream.
-
-      // For now, let's just pass a dummy stream to satisfy the API, or maybe undefined works.
-      // Let's create a dummy stream.
       const dummyStream = new MediaStream();
       const callObj = peerRef.current.call(adminPeerId, dummyStream);
 

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import ReactPlayer from 'react-player'
 import { Favorite, FavoriteBorder, Comment, Share, MusicNote, Send, Close } from '@mui/icons-material'
-import { Box, Typography, Avatar, IconButton, CircularProgress, Drawer, TextField, List, ListItem, ListItemAvatar, ListItemText, Divider } from '@mui/material'
+import { Box, Typography, Avatar, IconButton, CircularProgress, Drawer, TextField, List, ListItem, ListItemAvatar, ListItemText, Divider, Container } from '@mui/material'
 import { createClient } from '@/lib/supabase/client'
 
 // Mock Data as fallback
@@ -746,17 +746,18 @@ export const ReelsFeed = () => {
 
   return (
     <>
-        <Box
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="no-scrollbar"
-        sx={{
-            height: '100%',
-            overflowY: 'scroll',
-            scrollSnapType: 'y mandatory',
-            bgcolor: 'var(--background)',
-        }}
-        >
+        <Container maxWidth="lg" disableGutters sx={{ height: '100%' }}>
+            <Box
+            ref={containerRef}
+            onScroll={handleScroll}
+            className="no-scrollbar"
+            sx={{
+                height: '100%',
+                overflowY: 'scroll',
+                scrollSnapType: 'y mandatory',
+                bgcolor: 'var(--background)',
+            }}
+            >
         {reels.map((reel, index) => (
             <ReelItem 
                 key={reel.id} 
@@ -771,7 +772,8 @@ export const ReelsFeed = () => {
                 onEditReel={handleEditReel}
             />
         ))}
-        </Box>
+            </Box>
+        </Container>
 
         {activeReelId && (
             <CommentsDrawer 
