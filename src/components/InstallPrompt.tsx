@@ -16,30 +16,36 @@ export const InstallPrompt = () => {
   useEffect(() => {
     // Check if already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
+      console.log('PWA: App is already installed')
       return
     }
 
     // Check if user dismissed the prompt before
     const dismissed = localStorage.getItem('pwa-install-dismissed')
     if (dismissed) {
+      console.log('PWA: User previously dismissed install prompt')
       return
     }
 
     // Detect iOS
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
     setIsIOS(iOS)
+    console.log('PWA: Device type -', iOS ? 'iOS' : 'Android/Desktop')
 
     if (iOS) {
       // Show iOS install instructions after a delay
       setTimeout(() => {
+        console.log('PWA: Showing iOS install prompt')
         setShowPrompt(true)
       }, 3000)
     } else {
       // Listen for beforeinstallprompt event (Android/Desktop)
       const handler = (e: Event) => {
+        console.log('PWA: beforeinstallprompt event fired!')
         e.preventDefault()
         setDeferredPrompt(e as BeforeInstallPromptEvent)
         setTimeout(() => {
+          console.log('PWA: Showing install prompt')
           setShowPrompt(true)
         }, 3000)
       }

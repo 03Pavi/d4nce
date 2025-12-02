@@ -3,7 +3,7 @@ const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
+  disable: false, // Temporarily enabled for testing - set back to: process.env.NODE_ENV === 'development'
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
@@ -11,7 +11,7 @@ const withPWA = require('next-pwa')({
       options: {
         cacheName: 'google-fonts-webfonts',
         expiration: {
-          maxEntries: 4,
+          maxEntries: 4,                            
           maxAgeSeconds: 365 * 24 * 60 * 60 // 365 days
         }
       }
