@@ -92,8 +92,8 @@ const UserListDialog = ({ open, onClose, title, type, profileId }: UserListDialo
     };
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" PaperProps={{ sx: { bgcolor: '#1a1a1a', color: 'white', height: '50vh' } }}>
-            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" PaperProps={{ sx: { bgcolor: 'var(--surface)', color: 'white', height: '50vh' } }}>
+            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <Typography variant="h6" fontWeight="bold">{title}</Typography>
                 <IconButton onClick={onClose} sx={{ color: 'white' }}><Close /></IconButton>
             </Box>
@@ -101,7 +101,7 @@ const UserListDialog = ({ open, onClose, title, type, profileId }: UserListDialo
                 {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress color="secondary" /></Box>
                 ) : users.length === 0 ? (
-                    <Typography sx={{ textAlign: 'center', color: '#666', mt: 4 }}>No users found.</Typography>
+                    <Typography sx={{ textAlign: 'center', color: 'var(--text-secondary)', mt: 4 }}>No users found.</Typography>
                 ) : (
                     <List>
                         {users.map((user) => (
@@ -111,7 +111,7 @@ const UserListDialog = ({ open, onClose, title, type, profileId }: UserListDialo
                                 </ListItemAvatar>
                                 <ListItemText 
                                     primary={<Typography color="white" fontWeight="bold">{user.full_name}</Typography>}
-                                    secondary={<Typography color="#888" variant="body2">@{user.username || 'user'}</Typography>}
+                                    secondary={<Typography color="var(--text-secondary)" variant="body2">@{user.username || 'user'}</Typography>}
                                 />
                             </ListItem>
                         ))}
@@ -241,10 +241,10 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
       onClose={onClose}
       TransitionComponent={Transition}
       PaperProps={{
-        sx: { bgcolor: 'black', color: 'white' }
+        sx: { bgcolor: 'var(--background)', color: 'white' }
       }}
     >
-      <AppBar sx={{ position: 'relative', bgcolor: 'black', borderBottom: '1px solid #333' }}>
+      <AppBar sx={{ position: 'relative', bgcolor: 'var(--background)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <Toolbar>
           <IconButton edge="start" color="inherit" onClick={onClose} aria-label="close">
             <ArrowBack />
@@ -266,10 +266,10 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
               <Avatar 
                 src={profile?.avatar_url} 
-                sx={{ width: 100, height: 100, mb: 2, border: '3px solid #ff0055' }}
+                sx={{ width: 100, height: 100, mb: 2, border: '3px solid var(--primary)' }}
               />
               <Typography variant="h5" fontWeight="bold">{profile?.full_name}</Typography>
-              <Typography variant="body2" sx={{ color: '#888', mb: 2 }}>@{profile?.username || 'user'}</Typography>
+              <Typography variant="body2" sx={{ color: 'var(--text-secondary)', mb: 2 }}>@{profile?.username || 'user'}</Typography>
               
               <Box sx={{ display: 'flex', gap: 4, mb: 3 }}>
                 <Box 
@@ -277,18 +277,18 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
                     sx={{ textAlign: 'center', cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
                 >
                   <Typography fontWeight="bold" variant="h6">{profile?.followers_count || 0}</Typography>
-                  <Typography variant="caption" sx={{ color: '#888' }}>Followers</Typography>
+                  <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Followers</Typography>
                 </Box>
                 <Box 
                     onClick={() => handleOpenUserList('following')}
                     sx={{ textAlign: 'center', cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
                 >
                   <Typography fontWeight="bold" variant="h6">{profile?.following_count || 0}</Typography>
-                  <Typography variant="caption" sx={{ color: '#888' }}>Following</Typography>
+                  <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Following</Typography>
                 </Box>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography fontWeight="bold" variant="h6">{reels.length}</Typography>
-                  <Typography variant="caption" sx={{ color: '#888' }}>Reels</Typography>
+                  <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>Reels</Typography>
                 </Box>
               </Box>
 
@@ -300,11 +300,12 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
                   sx={{ 
                     px: 4, 
                     borderRadius: 4,
-                    borderColor: isFollowing ? '#666' : 'transparent',
+                    borderColor: isFollowing ? 'var(--text-secondary)' : 'transparent',
                     color: isFollowing ? 'white' : 'white',
-                    bgcolor: isFollowing ? 'transparent' : '#ff0055',
+                    bgcolor: isFollowing ? 'transparent' : 'var(--primary)',
                     '&:hover': {
-                        bgcolor: isFollowing ? 'rgba(255,255,255,0.1)' : '#d40047',
+                        bgcolor: isFollowing ? 'rgba(255,255,255,0.1)' : 'var(--primary)',
+                        opacity: 0.9,
                         borderColor: isFollowing ? 'white' : 'transparent'
                     }
                   }}
@@ -323,12 +324,12 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
                     sx={{ 
                         width: '100%', 
                         height: '100%', 
-                        bgcolor: '#111', 
+                        bgcolor: 'var(--surface)', 
                         borderRadius: 1, 
                         overflow: 'hidden', 
                         position: 'relative',
                         cursor: 'pointer',
-                        border: '1px solid #333'
+                        border: '1px solid rgba(255,255,255,0.1)'
                     }}
                   >
                     {/* Simple video preview - muted, no controls */}
@@ -363,7 +364,7 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
                                 right: 4, 
                                 bgcolor: 'rgba(0,0,0,0.5)', 
                                 color: 'white',
-                                '&:hover': { bgcolor: '#ff0055' }
+                                '&:hover': { bgcolor: 'var(--primary)' }
                             }}
                         >
                             <Delete fontSize="small" />

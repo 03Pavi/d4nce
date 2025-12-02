@@ -1,19 +1,44 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { Box, BottomNavigation, BottomNavigationAction, Paper, Button, Fab } from '@mui/material'
-import { LiveTv, Alarm, VideoLibrary, Add } from '@mui/icons-material'
+import { Box, BottomNavigation, BottomNavigationAction, Paper, Button, CircularProgress } from '@mui/material'
+import { LiveTv, Alarm, VideoLibrary, Add, Logout } from '@mui/icons-material'
 import { LiveSession } from '@/modules/live-class/components/LiveSession'
 import { ReminderList } from '@/modules/reminders/components/ReminderList'
 import { ReelsFeed } from '@/modules/reels/components/ReelsFeed'
 import { UploadReelDialog } from '@/modules/reels/components/UploadReelDialog'
-
-import { signOut } from 'next-auth/react'
-import { Logout } from '@mui/icons-material'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 const AdminPage = () => {
   const [value, setValue] = useState(0);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [feedKey, setFeedKey] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClient();
+
+  useEffect(() => {
+    const checkRole = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+        if (profile?.role !== 'admin') {
+            router.push('/student');
+        } else {
+            setLoading(false);
+        }
+    };
+    checkRole();
+  }, [router, supabase]);
 
   // Sync tab with URL
   useEffect(() => {
@@ -50,6 +75,19 @@ const AdminPage = () => {
     setFeedKey(prev => prev + 1);
   };
 
+  const handleLogout = async () => {
+      await supabase.auth.signOut();
+      router.push('/login');
+  };
+
+  if (loading) {
+      return (
+          <Box sx={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'black' }}>
+              <CircularProgress color="secondary" />
+          </Box>
+      );
+  }
+
   return (
     <Box sx={{ height: '100vh', width: '100vw', bgcolor: 'black', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', bgcolor: '#111' }}>
@@ -58,7 +96,7 @@ const AdminPage = () => {
             color="error" 
             size="small" 
             startIcon={<Logout />} 
-            onClick={() => signOut({ callbackUrl: '/' })}
+            onClick={handleLogout}
           >
             Logout
           </Button>

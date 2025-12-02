@@ -133,7 +133,7 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
           <Typography variant="h6" fontWeight="bold">Upload New Reel</Typography>
         </Box>
         {!uploading && (
-          <IconButton onClick={handleClose} sx={{ color: '#666', '&:hover': { color: 'white' } }}>
+          <IconButton onClick={handleClose} sx={{ color: 'var(--text-secondary)', '&:hover': { color: 'white' } }}>
             <Close />
           </IconButton>
         )}
@@ -147,18 +147,18 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
               fullWidth
               sx={{ 
                 height: 250, 
-                border: '2px dashed #444', 
+                border: '2px dashed rgba(255,255,255,0.2)', 
                 borderRadius: 2,
                 display: 'flex', 
                 flexDirection: 'column', 
                 gap: 2,
-                color: '#888',
+                color: 'var(--text-secondary)',
                 bgcolor: 'rgba(255,255,255,0.02)',
                 transition: 'all 0.3s ease',
                 '&:hover': {
-                  border: '2px dashed #ff0055',
+                  border: '2px dashed var(--primary)',
                   bgcolor: 'rgba(255, 0, 85, 0.05)',
-                  color: '#ff0055'
+                  color: 'var(--primary)'
                 }
               }}
             >
@@ -188,12 +188,12 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
               position: 'relative', 
               width: '100%', 
               height: 350, 
-              bgcolor: 'black', 
+              bgcolor: 'var(--background)', 
               borderRadius: 2,
               overflow: 'hidden',
               display: 'flex', 
               justifyContent: 'center',
-              border: '1px solid #333'
+              border: '1px solid rgba(255,255,255,0.1)'
             }}>
               <video src={previewUrl} controls style={{ maxHeight: '100%', maxWidth: '100%' }} />
               <IconButton 
@@ -205,7 +205,7 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
                   bgcolor: 'rgba(0,0,0,0.6)', 
                   color: 'white', 
                   backdropFilter: 'blur(4px)',
-                  '&:hover': { bgcolor: '#ff0055' } 
+                  '&:hover': { bgcolor: 'var(--primary)' } 
                 }}
               >
                 <Delete />
@@ -226,12 +226,12 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
               '& .MuiOutlinedInput-root': {
                 color: 'white',
                 bgcolor: 'rgba(255,255,255,0.03)',
-                '& fieldset': { borderColor: '#444' },
+                '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                 '&:hover fieldset': { borderColor: '#666' },
-                '&.Mui-focused fieldset': { borderColor: '#ff0055' },
+                '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
               },
-              '& .MuiInputLabel-root': { color: '#888' },
-              '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
+              '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+              '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' }
             }}
           />
 
@@ -244,11 +244,11 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
           )}
         </Box>
       </DialogContent>
-      <DialogActions sx={{ p: 3, borderTop: '1px solid #333' }}>
+      <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
         <Button 
           onClick={handleClose} 
           disabled={uploading}
-          sx={{ color: '#888', '&:hover': { color: 'white' } }}
+          sx={{ color: 'var(--text-secondary)', '&:hover': { color: 'white' } }}
         >
           Cancel
         </Button>
@@ -258,9 +258,9 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
           disabled={!file || uploading}
           startIcon={uploading ?  <CircularProgress size={20} color="inherit" /> : <CloudUpload />}
           sx={{
-            bgcolor: '#ff0055',
+            bgcolor: 'var(--primary)',
             '&:hover': { bgcolor: '#d40047' },
-            '&.Mui-disabled': { bgcolor: '#444', color: '#888' },
+            '&.Mui-disabled': { bgcolor: 'rgba(255,255,255,0.2)', color: 'var(--text-secondary)' },
             px: 4,
             py: 1
           }}

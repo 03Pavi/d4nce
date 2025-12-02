@@ -39,7 +39,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false }: Live
     if (role === 'student' && isPaid && !hasPurchased) {
         return (
             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', bgcolor: '#1a1a1a', color: 'white', p: 3 }}>
-                <Typography variant="h4" sx={{ mb: 2, fontWeight: 'bold' }}>Premium Masterclass</Typography>
+                <Typography variant="h4" sx={{ mb: 2, fontWeight: 'bold', textAlign:"center" }}>Premium Masterclass</Typography>
                 <Typography sx={{ mb: 4, textAlign: 'center', color: '#a0a0a0' }}>Unlock this exclusive live session to learn advanced techniques.</Typography>
                 <Button variant="contained" size="large" sx={{ bgcolor: '#ff0055', '&:hover': { bgcolor: '#cc0044' } }}>
                     Buy Ticket - $15.00

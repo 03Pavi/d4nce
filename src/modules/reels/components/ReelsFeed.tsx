@@ -170,7 +170,7 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                 }
             }}
         >
-            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
+            <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <Typography variant="h6" fontWeight="bold">Comments</Typography>
                 <IconButton onClick={onClose} sx={{ color: 'white' }}><Close /></IconButton>
             </Box>
@@ -179,7 +179,7 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                 {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress color="secondary" /></Box>
                 ) : comments.length === 0 ? (
-                    <Typography sx={{ textAlign: 'center', color: '#666', mt: 4 }}>No comments yet. Be the first!</Typography>
+                    <Typography sx={{ textAlign: 'center', color: 'var(--text-secondary)', mt: 4 }}>No comments yet. Be the first!</Typography>
                 ) : (
                     <List>
                         {comments.map((comment) => (
@@ -193,7 +193,7 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                                             edge="end" 
                                             size="small" 
                                             onClick={(e) => handleMenuOpen(e, comment.id, comment.content)}
-                                            sx={{ color: '#666' }}
+                                            sx={{ color: 'var(--text-secondary)' }}
                                         >
                                             <MoreVert fontSize="small" />
                                         </IconButton>
@@ -209,7 +209,7 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                                     primary={
                                         <Typography variant="subtitle2" fontWeight="bold" color="white">
                                             {comment.profiles?.full_name || 'Unknown User'}
-                                            <Typography component="span" variant="caption" sx={{ ml: 1, color: '#666' }}>
+                                            <Typography component="span" variant="caption" sx={{ ml: 1, color: 'var(--text-secondary)' }}>
                                                 {new Date(comment.created_at).toLocaleDateString()}
                                             </Typography>
                                         </Typography>
@@ -226,7 +226,7 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                                                         '& .MuiOutlinedInput-root': {
                                                             color: 'white',
                                                             bgcolor: 'rgba(255,255,255,0.05)',
-                                                            '& fieldset': { borderColor: '#444' },
+                                                            '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                                                         }
                                                     }}
                                                 />
@@ -234,14 +234,14 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                                                     <Typography 
                                                         variant="caption" 
                                                         onClick={handleCancelEdit}
-                                                        sx={{ color: '#888', cursor: 'pointer', '&:hover': { color: 'white' } }}
+                                                        sx={{ color: 'var(--text-secondary)', cursor: 'pointer', '&:hover': { color: 'white' } }}
                                                     >
                                                         Cancel
                                                     </Typography>
                                                     <Typography 
                                                         variant="caption" 
                                                         onClick={handleUpdateComment}
-                                                        sx={{ color: '#ff0055', cursor: 'pointer', fontWeight: 'bold' }}
+                                                        sx={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold' }}
                                                     >
                                                         Save
                                                     </Typography>
@@ -251,7 +251,7 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                                             <Typography variant="body2" color="#ccc">
                                                 {comment.content}
                                                 {comment.updated_at && comment.updated_at !== comment.created_at && (
-                                                    <Typography component="span" variant="caption" sx={{ ml: 1, color: '#666', fontStyle: 'italic' }}>
+                                                    <Typography component="span" variant="caption" sx={{ ml: 1, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                                                         (edited)
                                                     </Typography>
                                                 )}
@@ -271,7 +271,7 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                 onClose={handleMenuClose}
                 PaperProps={{
                     sx: {
-                        bgcolor: '#2a2a2a',
+                        bgcolor: 'var(--surface)',
                         color: 'white',
                     }
                 }}
@@ -281,12 +281,12 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                     <ListItemText>Edit</ListItemText>
                 </MenuItem>
                 <MenuItem onClick={handleDeleteClick}>
-                    <ListItemIcon><Delete fontSize="small" sx={{ color: '#ff0055' }} /></ListItemIcon>
-                    <ListItemText sx={{ color: '#ff0055' }}>Delete</ListItemText>
+                    <ListItemIcon><Delete fontSize="small" sx={{ color: 'var(--primary)' }} /></ListItemIcon>
+                    <ListItemText sx={{ color: 'var(--primary)' }}>Delete</ListItemText>
                 </MenuItem>
             </Menu>
 
-            <Box sx={{ p: 2, borderTop: '1px solid #333', display: 'flex', gap: 1 }}>
+            <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 1 }}>
                 <TextField
                     fullWidth
                     variant="outlined"
@@ -305,7 +305,7 @@ const CommentsDrawer = ({ open, onClose, reelId, userId }: { open: boolean; onCl
                 <IconButton 
                     onClick={handlePostComment} 
                     disabled={!newComment.trim() || !userId}
-                    sx={{ color: '#ff0055', bgcolor: 'rgba(255,0,85,0.1)', '&:hover': { bgcolor: 'rgba(255,0,85,0.2)' } }}
+                    sx={{ color: 'var(--primary)', bgcolor: 'rgba(255,0,85,0.1)', '&:hover': { bgcolor: 'rgba(255,0,85,0.2)' } }}
                 >
                     <Send />
                 </IconButton>
@@ -341,7 +341,7 @@ const EditReelDialog = ({ open, onClose, reel, onUpdate }: any) => {
     };
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" PaperProps={{ sx: { bgcolor: '#1a1a1a', color: 'white' } }}>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" PaperProps={{ sx: { bgcolor: 'var(--surface)', color: 'white' } }}>
             <DialogTitle>Edit Caption</DialogTitle>
             <DialogContent>
                 <TextField
@@ -355,14 +355,14 @@ const EditReelDialog = ({ open, onClose, reel, onUpdate }: any) => {
                         '& .MuiOutlinedInput-root': {
                             color: 'white',
                             bgcolor: 'rgba(255,255,255,0.05)',
-                            '& fieldset': { borderColor: '#444' },
+                            '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                         }
                     }}
                 />
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose} sx={{ color: '#888' }}>Cancel</Button>
-                <Button onClick={handleUpdate} variant="contained" sx={{ bgcolor: '#ff0055' }}>Save</Button>
+                <Button onClick={onClose} sx={{ color: 'var(--text-secondary)' }}>Cancel</Button>
+                <Button onClick={handleUpdate} variant="contained" sx={{ bgcolor: 'var(--primary)' }}>Save</Button>
             </DialogActions>
         </Dialog>
     );
@@ -449,7 +449,7 @@ const ReelItem = ({ reel, isActive, userId, likedReels, onToggleLike, onOpenComm
         width: '100%',
         position: 'relative',
         scrollSnapAlign: 'start',
-        bgcolor: 'black',
+        bgcolor: 'var(--background)',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
@@ -490,7 +490,7 @@ const ReelItem = ({ reel, isActive, userId, likedReels, onToggleLike, onOpenComm
                 onClick={() => onOpenProfile(reel.user_id)}
                 sx={{ display: 'flex', alignItems: 'center', mb: 2, cursor: 'pointer' }}
             >
-                <Avatar src={reel.user_avatar} sx={{ width: 40, height: 40, mr: 1.5, border: '2px solid #ff0055' }}>
+                <Avatar src={reel.user_avatar} sx={{ width: 40, height: 40, mr: 1.5, border: '2px solid var(--primary)' }}>
                   {reel.user ? reel.user[0]?.toUpperCase() : '?'}
                 </Avatar>
                 <Typography variant="subtitle1" fontWeight="bold" sx={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
@@ -515,7 +515,7 @@ const ReelItem = ({ reel, isActive, userId, likedReels, onToggleLike, onOpenComm
                         anchorEl={anchorEl}
                         open={Boolean(anchorEl)}
                         onClose={() => setAnchorEl(null)}
-                        PaperProps={{ sx: { bgcolor: '#2a2a2a', color: 'white' } }}
+                        PaperProps={{ sx: { bgcolor: 'var(--surface)', color: 'white' } }}
                         anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
                         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                     >
@@ -524,15 +524,15 @@ const ReelItem = ({ reel, isActive, userId, likedReels, onToggleLike, onOpenComm
                             <ListItemText>Edit Caption</ListItemText>
                         </MenuItem>
                         <MenuItem onClick={() => { onDeleteReel(reel.id); setAnchorEl(null); }}>
-                            <ListItemIcon><Delete fontSize="small" sx={{ color: '#ff0055' }} /></ListItemIcon>
-                            <ListItemText sx={{ color: '#ff0055' }}>Delete Reel</ListItemText>
+                            <ListItemIcon><Delete fontSize="small" sx={{ color: 'var(--primary)' }} /></ListItemIcon>
+                            <ListItemText sx={{ color: 'var(--primary)' }}>Delete Reel</ListItemText>
                         </MenuItem>
                     </Menu>
                 </Box>
             )}
 
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <IconButton onClick={handleLike} sx={{ color: optimisticLike ? '#ff0055' : 'white', p: 0, mb: 0.5 }}>
+                <IconButton onClick={handleLike} sx={{ color: optimisticLike ? 'var(--primary)' : 'white', p: 0, mb: 0.5 }}>
                     {optimisticLike ? <Favorite sx={{ fontSize: 32 }} /> : <FavoriteBorder sx={{ fontSize: 32 }} />}
                 </IconButton>
                 <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>{optimisticCount}</Typography>
@@ -738,7 +738,7 @@ export const ReelsFeed = () => {
 
   if (loading) {
     return (
-      <Box sx={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'black' }}>
+      <Box sx={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'var(--background)' }}>
         <CircularProgress color="secondary" />
       </Box>
     );
@@ -754,7 +754,7 @@ export const ReelsFeed = () => {
             height: '100%',
             overflowY: 'scroll',
             scrollSnapType: 'y mandatory',
-            bgcolor: 'black',
+            bgcolor: 'var(--background)',
         }}
         >
         {reels.map((reel, index) => (

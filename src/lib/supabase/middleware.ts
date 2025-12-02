@@ -37,31 +37,57 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/signup') &&
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    request.nextUrl.pathname !== '/' // Allow landing page if it exists, or redirect?
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  const path = request.nextUrl.pathname;
+
+  // 1. Unauthenticated Users
+  if (!user) {
+    // Allow auth routes
+    if (path.startsWith('/login') || path.startsWith('/signup') || path.startsWith('/auth')) {
+      return supabaseResponse;
+    }
+    // Redirect everything else to login
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
   }
 
-  // If user is logged in and tries to access login/signup, redirect to dashboard
-  if (user && (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup'))) {
-    const url = request.nextUrl.clone()
-    // We need to decide where to go. For now, let's say /student or /admin based on metadata if possible, 
-    // or just /student as default. 
-    // Since we can't easily check role here without DB call (which is expensive in middleware), 
-    // let's just let the page handle redirection or default to /student.
-    // Actually, let's just redirect to /student for now, or /admin if we knew.
-    // Better: let them go to the page, and the page redirects? 
-    // Or just redirect to /student.
-    url.pathname = '/student'
-    return NextResponse.redirect(url)
+  // 2. Authenticated Users
+  if (user) {
+    // Fetch Role
+    // Try metadata first (optimization)
+    let role = user.user_metadata?.role;
+
+    // If not in metadata, fetch from profiles
+    if (!role) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      role = profile?.role || 'student'; // Default to student
+    }
+
+    const dashboard = role === 'admin' ? '/admin' : '/student';
+
+    // A. Redirect from public/auth pages to dashboard
+    if (path === '/' || path.startsWith('/login') || path.startsWith('/signup')) {
+      const url = request.nextUrl.clone();
+      url.pathname = dashboard;
+      return NextResponse.redirect(url);
+    }
+
+    // B. Role-based Access Control
+    if (role === 'student' && path.startsWith('/admin')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/student';
+      return NextResponse.redirect(url);
+    }
+
+    if (role === 'admin' && path.startsWith('/student')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse
