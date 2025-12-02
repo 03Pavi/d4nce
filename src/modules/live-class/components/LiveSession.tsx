@@ -8,31 +8,31 @@ interface LiveSessionProps {
     role: 'admin' | 'student';
     isPaid?: boolean;
     hasPurchased?: boolean;
+    sessionId?: string;
 }
 
-export const LiveSession = ({ role, isPaid = false, hasPurchased = false }: LiveSessionProps) => {
+export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessionId = 'class-1' }: LiveSessionProps) => {
     const [isLive, setIsLive] = useState(role === 'student'); 
-    const { localStream, remoteStream, isConnected } = useLiveStream(isLive ? role : 'student', 'class-1');
+    const { localStream, remoteStream, isConnected, chatMessages, sendChatMessage, connectedCount } = useLiveStream(isLive ? role : 'student', sessionId);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
         if (videoRef.current) {
             if (role === 'admin' && localStream) {
+                console.log('Setting local stream to video element');
                 videoRef.current.srcObject = localStream;
             } else if (role === 'student' && remoteStream) {
+                console.log('Setting remote stream to video element');
                 videoRef.current.srcObject = remoteStream;
             }
         }
     }, [localStream, remoteStream, role]);
-    const [messages, setMessages] = useState<{user: string, text: string}[]>([
-        { user: 'Student 1', text: 'Can\'t wait!' },
-        { user: 'Student 2', text: 'Hello from Brazil!' }
-    ]);
+    
     const [newMessage, setNewMessage] = useState('');
 
     const handleSendMessage = () => {
         if (!newMessage.trim()) return;
-        setMessages([...messages, { user: role === 'admin' ? 'Instructor' : 'Me', text: newMessage }]);
+        sendChatMessage(newMessage);
         setNewMessage('');
     }
 
@@ -70,6 +70,9 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false }: Live
                                 playsInline 
                                 muted={role === 'admin'} // Mute self
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                onLoadedMetadata={() => console.log('Video metadata loaded')}
+                                onPlay={() => console.log('Video started playing')}
+                                onError={(e) => console.error('Video error:', e)}
                             />
                             {!isConnected && role === 'student' && (
                                 <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
@@ -99,7 +102,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false }: Live
                 
                 {/* Viewer Count */}
                  {isLive && (
-                    <Chip label={`👁 ${isConnected ? 'Connected' : '...'} `} sx={{ position: 'absolute', top: 16, right: 16, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: 1 }} />
+                    <Chip label={`👁 ${connectedCount} `} sx={{ position: 'absolute', top: 16, right: 16, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: 1 }} />
                 )}
             </Box>
 
@@ -118,7 +121,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false }: Live
                     <Typography variant="subtitle2" sx={{ color: 'white' }}>Live Chat</Typography>
                 </Box>
                 <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
-                    {messages.map((msg, i) => (
+                    {chatMessages.map((msg, i) => (
                         <Box key={i} sx={{ mb: 1.5, display: 'flex', alignItems: 'flex-start' }}>
                             <Typography variant="caption" sx={{ color: '#ff0055', fontWeight: 'bold', mr: 1, whiteSpace: 'nowrap' }}>{msg.user}:</Typography>
                             <Typography variant="body2" sx={{ color: 'white' }}>{msg.text}</Typography>

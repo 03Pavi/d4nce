@@ -21,11 +21,11 @@ export const InstallPrompt = () => {
     }
 
     // Check if user dismissed the prompt before
-    const dismissed = localStorage.getItem('pwa-install-dismissed')
-    if (dismissed) {
-      console.log('PWA: User previously dismissed install prompt')
-      return
-    }
+    // const dismissed = localStorage.getItem('pwa-install-dismissed')
+    // if (dismissed) {
+    //   console.log('PWA: User previously dismissed install prompt')
+    //   return
+    // }
 
     // Detect iOS
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
@@ -37,7 +37,7 @@ export const InstallPrompt = () => {
       setTimeout(() => {
         console.log('PWA: Showing iOS install prompt')
         setShowPrompt(true)
-      }, 3000)
+      }, 1000)
     } else {
       // Listen for beforeinstallprompt event (Android/Desktop)
       const handler = (e: Event) => {
@@ -47,7 +47,7 @@ export const InstallPrompt = () => {
         setTimeout(() => {
           console.log('PWA: Showing install prompt')
           setShowPrompt(true)
-        }, 3000)
+        }, 1000)
       }
 
       window.addEventListener('beforeinstallprompt', handler)
