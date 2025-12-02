@@ -1,6 +1,7 @@
 
 import type { Metadata } from "next";
 import StoreProvider from "@/shared/providers/store-provider";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import "./globals.scss";
 
 export const metadata: Metadata = {
@@ -49,7 +50,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body suppressHydrationWarning={true}>
-        <StoreProvider>{children}</StoreProvider>
+        <StoreProvider>
+          {children}
+          <InstallPrompt />
+        </StoreProvider>
       </body>
     </html>
   );
