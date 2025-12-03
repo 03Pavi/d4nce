@@ -1,19 +1,19 @@
 'use client'
 import React, { useState, useEffect, useTransition } from 'react'
-import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Badge } from '@mui/material'
-import { LiveTv, VideoLibrary, AddCircle, Logout, LibraryBooks, Notifications, Person } from '@mui/icons-material'
-import { LiveSession } from '@/modules/live-class/components/LiveSession'
-import { ReminderList } from '@/modules/reminders/components/ReminderList'
-import { ReelsFeed } from '@/modules/reels/components/ReelsFeed'
-import { UploadReelDialog } from '@/modules/reels/components/UploadReelDialog'
-import { StudentClassesView } from '@/modules/classes/components/StudentClassesView'
-import { ProfileView } from '@/modules/profile/components/ProfileView'
+import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Badge, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider } from '@mui/material'
+import { LiveTv, VideoLibrary, AddCircle, Logout, LibraryBooks, Notifications, Person, Menu as MenuIcon } from '@mui/icons-material'
+import { LiveSession } from '@/modules/classes/components/live-class/components/live-session'
+import { ReminderList } from '@/modules/reminders/components/reminder-list'
+import { ReelsFeed } from '@/modules/reels/components/reels-feed'
+import { UploadReelDialog } from '@/modules/reels/components/upload-reel-dialog'
+import { StudentClassesView } from '@/modules/classes/components/student-classes-view'
+import { ProfileView } from '@/modules/profile/components/profile-view'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 
 const StudentPage = () => {
   const [value, setValue] = useState(0);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [feedKey, setFeedKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -128,13 +128,18 @@ const StudentPage = () => {
         borderBottom: '1px solid rgba(255,255,255,0.1)'
       }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {/* Logo or Title */}
+            <IconButton
+                sx={{ display: { xs: 'flex', md: 'none' }, color: 'white', mr: 1 }}
+                onClick={() => setMobileOpen(true)}
+            >
+                <MenuIcon />
+            </IconButton>
             <Typography variant="h6" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #ff0055, #ff00aa)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', ml: 1 }}>
                 D4NCE
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
               <IconButton 
                 onClick={() => handleTabChange(4)} 
                 sx={{ color: value === 4 ? '#ff0055' : 'var(--text-secondary)' }}
@@ -173,6 +178,58 @@ const StudentPage = () => {
               </IconButton>
           </Box>
       </Box>
+
+      {/* Mobile Drawer */}
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        PaperProps={{
+            sx: { width: 280, bgcolor: '#1a1a1a', color: 'white' }
+        }}
+      >
+        <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <Avatar 
+                src={userProfile?.avatar_url} 
+                sx={{ width: 48, height: 48, border: '2px solid #ff0055' }}
+            >
+                <Person />
+            </Avatar>
+            <Box>
+                <Typography variant="subtitle1" fontWeight="bold">{userProfile?.full_name || 'Student'}</Typography>
+                <Typography variant="caption" sx={{ color: '#888' }}>@{userProfile?.username || 'student'}</Typography>
+            </Box>
+        </Box>
+        <List sx={{ pt: 2 }}>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(5); setMobileOpen(false); }} selected={value === 5}>
+                    <ListItemIcon sx={{ color: value === 5 ? '#ff0055' : '#888' }}><Person /></ListItemIcon>
+                    <ListItemText primary="Profile" sx={{ color: value === 5 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(4); setMobileOpen(false); }} selected={value === 4}>
+                    <ListItemIcon sx={{ color: value === 4 ? '#ff0055' : '#888' }}><LibraryBooks /></ListItemIcon>
+                    <ListItemText primary="My Classes" sx={{ color: value === 4 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(1); setMobileOpen(false); }} selected={value === 1}>
+                    <ListItemIcon sx={{ color: value === 1 ? '#ff0055' : '#888' }}><Notifications /></ListItemIcon>
+                    <ListItemText primary="Reminders" sx={{ color: value === 1 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
+            <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
+            <ListItem disablePadding>
+                <ListItemButton onClick={handleLogout}>
+                    <ListItemIcon sx={{ color: '#888' }}>
+                      {isPending ? <CircularProgress size={20} /> : <Logout fontSize="small" />}
+                    </ListItemIcon>
+                    <ListItemText primary="Logout" />
+                </ListItemButton>
+            </ListItem>
+        </List>
+      </Drawer>
 
       {/* Main Content */}
       <Box sx={{ flex: 1, overflow: 'hidden', pb: 7, position: 'relative' }}>

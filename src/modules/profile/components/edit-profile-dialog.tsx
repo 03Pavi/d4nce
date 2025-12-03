@@ -11,12 +11,12 @@ import {
   Typography, 
   CircularProgress,
   IconButton,
-  Avatar,
   useTheme,
   useMediaQuery
 } from '@mui/material'
-import { Close, CloudUpload, Delete } from '@mui/icons-material'
+import { Close } from '@mui/icons-material'
 import { createClient } from '@/lib/supabase/client'
+import { AvatarUpload } from './avatar-upload'
 
 interface EditProfileDialogProps {
   open: boolean
@@ -45,16 +45,10 @@ export const EditProfileDialog = ({ open, onClose, onUpdateSuccess, currentProfi
     }
   }, [currentProfile, open])
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const selectedFile = event.target.files[0]
-      if (selectedFile.type.startsWith('image/')) {
-        setAvatarFile(selectedFile)
-        setAvatarPreview(URL.createObjectURL(selectedFile))
-      } else {
-        setError('Please select a valid image file.')
-      }
-    }
+  const handleFileSelect = (file: File) => {
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+    setError(null)
   }
 
   const handleSave = async () => {
@@ -150,27 +144,11 @@ export const EditProfileDialog = ({ open, onClose, onUpdateSuccess, currentProfi
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
           
           {/* Avatar Upload */}
-          <Box sx={{ position: 'relative' }}>
-            <Avatar 
-              src={avatarPreview || undefined} 
-              sx={{ width: 100, height: 100, border: '2px solid var(--primary)' }}
-            />
-            <IconButton
-              component="label"
-              sx={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                bgcolor: 'var(--primary)',
-                color: 'white',
-                '&:hover': { bgcolor: '#d40047' },
-                p: 1
-              }}
-            >
-              <CloudUpload fontSize="small" />
-              <input type="file" hidden accept="image/*" onChange={handleFileSelect} />
-            </IconButton>
-          </Box>
+          <AvatarUpload 
+            previewUrl={avatarPreview} 
+            onFileSelect={handleFileSelect} 
+            onError={setError} 
+          />
 
           <TextField
             label="Full Name"

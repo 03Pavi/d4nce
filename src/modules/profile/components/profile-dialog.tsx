@@ -11,20 +11,15 @@ import {
   CircularProgress,
   AppBar,
   Toolbar,
-  Slide,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText
-} from '@mui/material'
-import { ArrowBack, Delete, Close } from '@mui/icons-material'
+  Slide} from '@mui/material'
+import { ArrowBack, Delete } from '@mui/icons-material'
 import { TransitionProps } from '@mui/material/transitions'
 import { createClient } from '@/lib/supabase/client'
 import dynamic from 'next/dynamic'
 
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false })
 
-import { UserListDialog } from './UserListDialog'
+import { UserListDialog } from './user-list-dialog'
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {

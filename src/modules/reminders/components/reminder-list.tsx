@@ -1,12 +1,13 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { Box, Typography, IconButton, Button, Dialog, DialogTitle, DialogContent, TextField, DialogActions, Snackbar, Alert, Card, CardContent, Chip, Fade, Container, CircularProgress } from '@mui/material'
-import { Delete, Add, Alarm, NotificationsActive, Settings, AccessTime, Group } from '@mui/icons-material'
+import { Box, Typography, Button, Snackbar, Alert, Card, CardContent, Chip, Fade, Container, CircularProgress, IconButton } from '@mui/material'
+import { Delete, Add, Alarm, NotificationsActive, AccessTime, Group } from '@mui/icons-material'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import dayjs, { Dayjs } from 'dayjs';
 import { createClient } from '@/lib/supabase/client';
+import { AddReminderDialog } from './add-reminder-dialog';
+import { PushNotificationDialog } from './push-notification-dialog';
 
 interface Reminder {
     id: string;
@@ -23,15 +24,9 @@ export const ReminderList = ({ role }: ReminderListProps) => {
     const [reminders, setReminders] = useState<Reminder[]>([]);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
-    const [newReminder, setNewReminder] = useState<{ title: string; time: Dayjs | null; forGroup: string }>({ 
-        title: '', 
-        time: dayjs(), 
-        forGroup: '' 
-    });
     
     // Admin features
     const [notificationOpen, setNotificationOpen] = useState(false);
-    const [pushMessage, setPushMessage] = useState('');
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
 
     const supabase = createClient();
@@ -91,25 +86,23 @@ export const ReminderList = ({ role }: ReminderListProps) => {
         }
     };
 
-    const handleAdd = async () => {
-        if (!newReminder.time || !newReminder.title.trim()) {
+    const handleAdd = async (title: string, time: Dayjs | null, forGroup: string) => {
+        if (!time || !title.trim()) {
             setSnackbar({ open: true, message: 'Please fill in all required fields', severity: 'error' });
             return;
         }
         
         const { error } = await supabase.from('reminders').insert({
-            title: newReminder.title,
-            scheduled_time: newReminder.time.toISOString(),
-            for_group: newReminder.forGroup || 'All'
+            title: title,
+            scheduled_time: time.toISOString(),
+            for_group: forGroup || 'All'
         });
 
         if (error) {
             setSnackbar({ open: true, message: 'Failed to add reminder', severity: 'error' });
         } else {
             setOpen(false);
-            setNewReminder({ title: '', time: dayjs(), forGroup: '' });
             setSnackbar({ open: true, message: 'Reminder added successfully!', severity: 'success' });
-            // Fetch will be handled by realtime, but we can also optimistic update if needed
         }
     }
 
@@ -122,17 +115,16 @@ export const ReminderList = ({ role }: ReminderListProps) => {
         }
     }
 
-    const handleSendPush = () => {
-        if (!pushMessage.trim()) {
+    const handleSendPush = (message: string) => {
+        if (!message.trim()) {
             setSnackbar({ open: true, message: 'Please enter a message', severity: 'error' });
             return;
         }
         // In a real app, this would call a server action to trigger Web Push
         // For now, we simulate it locally
-        showNotification('Admin Announcement', pushMessage);
+        showNotification('Admin Announcement', message);
         setSnackbar({ open: true, message: `Push notification sent locally`, severity: 'success' });
         setNotificationOpen(false);
-        setPushMessage('');
     }
 
     return (
@@ -317,161 +309,17 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                     </Box>
                 </Container>
 
-                {/* Add Reminder Dialog - Only for Admin */}
-                {role === 'admin' && (
-                    <Dialog 
-                        open={open} 
-                        onClose={() => setOpen(false)} 
-                        maxWidth="sm"
-                        fullWidth
-                        PaperProps={{ 
-                            sx: { 
-                                bgcolor: '#1a1a1a', 
-                                color: 'white',
-                                borderRadius: 3,
-                                border: '1px solid rgba(255,255,255,0.1)'
-                            } 
-                        }}
-                    >
-                        <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 2 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Alarm sx={{ color: '#ff0055' }} />
-                                <Typography variant="h6" fontWeight="bold">Set New Reminder</Typography>
-                            </Box>
-                        </DialogTitle>
-                        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 2 }}>
-                            <TextField
-                                autoFocus
-                                label="Reminder Title *"
-                                fullWidth
-                                placeholder="e.g., Hip Hop Class"
-                                variant="outlined"
-                                value={newReminder.title}
-                                onChange={(e) => setNewReminder({ ...newReminder, title: e.target.value })}
-                                sx={{ 
-                                    '& .MuiInputBase-root': { color: 'white' },
-                                    '& .MuiInputLabel-root': { color: '#aaa' },
-                                    '& .MuiOutlinedInput-root': {
-                                        '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                                        '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                                        '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                                    },
-                                    '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-                                }}
-                            />
-                            <TimePicker
-                                label="Time *"
-                                value={newReminder.time}
-                                onChange={(newValue) => setNewReminder({ ...newReminder, time: newValue })}
-                                sx={{
-                                    width: '100%',
-                                    '& .MuiInputBase-root': { color: 'white' },
-                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' },
-                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.4)' },
-                                    '& .Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#ff0055' },
-                                    '& .MuiSvgIcon-root': { color: '#ff0055' },
-                                    '& .MuiInputLabel-root': { color: '#aaa' },
-                                    '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-                                }}
-                            />
-                             <TextField
-                                label="Target Group (Optional)"
-                                fullWidth
-                                placeholder="e.g., Advanced, Beginners, All"
-                                variant="outlined"
-                                value={newReminder.forGroup}
-                                onChange={(e) => setNewReminder({ ...newReminder, forGroup: e.target.value })}
-                                sx={{ 
-                                    '& .MuiInputBase-root': { color: 'white' },
-                                    '& .MuiInputLabel-root': { color: '#aaa' },
-                                    '& .MuiOutlinedInput-root': {
-                                        '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                                        '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                                        '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                                    },
-                                    '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-                                }}
-                            />
-                        </DialogContent>
-                        <DialogActions sx={{ p: 2.5, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                            <Button onClick={() => setOpen(false)} sx={{ color: '#888' }}>Cancel</Button>
-                            <Button 
-                                onClick={handleAdd} 
-                                variant="contained"
-                                sx={{ 
-                                    bgcolor: '#ff0055',
-                                    fontWeight: 'bold',
-                                    '&:hover': { bgcolor: '#cc0044' }
-                                }}
-                            >
-                                Set Reminder
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
-                )}
+                <AddReminderDialog 
+                    open={open} 
+                    onClose={() => setOpen(false)} 
+                    onAdd={handleAdd} 
+                />
 
-                {/* Push Notification Dialog - Only for Admin */}
-                {role === 'admin' && (
-                    <Dialog 
-                        open={notificationOpen} 
-                        onClose={() => setNotificationOpen(false)} 
-                        maxWidth="sm"
-                        fullWidth
-                        PaperProps={{ 
-                            sx: { 
-                                bgcolor: '#1a1a1a', 
-                                color: 'white',
-                                borderRadius: 3,
-                                border: '1px solid rgba(0,229,255,0.3)'
-                            } 
-                        }}
-                    >
-                        <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)', pb: 2 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <NotificationsActive sx={{ color: '#00e5ff' }} />
-                                <Typography variant="h6" fontWeight="bold">Send Push Notification</Typography>
-                            </Box>
-                        </DialogTitle>
-                        <DialogContent sx={{ mt: 2 }}>
-                            <TextField
-                                autoFocus
-                                label="Message"
-                                fullWidth
-                                multiline
-                                rows={4}
-                                placeholder="Wake up students! Class starts in 1 hour."
-                                variant="outlined"
-                                value={pushMessage}
-                                onChange={(e) => setPushMessage(e.target.value)}
-                                sx={{ 
-                                    '& .MuiInputBase-root': { color: 'white' },
-                                    '& .MuiInputLabel-root': { color: '#aaa' },
-                                    '& .MuiOutlinedInput-root': {
-                                        '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                                        '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                                        '&.Mui-focused fieldset': { borderColor: '#00e5ff' },
-                                    },
-                                    '& .MuiInputLabel-root.Mui-focused': { color: '#00e5ff' }
-                                }}
-                            />
-                        </DialogContent>
-                        <DialogActions sx={{ p: 2.5, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                            <Button onClick={() => setNotificationOpen(false)} sx={{ color: '#888' }}>Cancel</Button>
-                            <Button 
-                                onClick={handleSendPush} 
-                                variant="contained" 
-                                sx={{ 
-                                    bgcolor: '#00e5ff', 
-                                    color: 'black', 
-                                    fontWeight: 'bold',
-                                    '&:hover': { bgcolor: '#00b2cc' }
-                                }}
-                            >
-                                Send Notification
-                            </Button>
-                        </DialogActions>
-                    </Dialog>
-                )}
+                <PushNotificationDialog 
+                    open={notificationOpen} 
+                    onClose={() => setNotificationOpen(false)} 
+                    onSend={handleSendPush} 
+                />
 
                 <Snackbar 
                     open={snackbar.open} 
