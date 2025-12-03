@@ -1,21 +1,25 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { Box, BottomNavigation, BottomNavigationAction, Paper, Button, CircularProgress } from '@mui/material'
-import { LiveTv, Alarm, VideoLibrary, Add, Logout, School, ManageAccounts } from '@mui/icons-material'
+import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider } from '@mui/material'
+import { LiveTv, VideoLibrary, AddCircle, Logout, ManageAccounts, Notifications, Person, Menu as MenuIcon } from '@mui/icons-material'
 import { LiveSession } from '@/modules/live-class/components/LiveSession'
 import { ReminderList } from '@/modules/reminders/components/ReminderList'
 import { ReelsFeed } from '@/modules/reels/components/ReelsFeed'
 import { UploadReelDialog } from '@/modules/reels/components/UploadReelDialog'
 import { ClassesManagement } from '@/modules/classes/components/ClassesManagement'
+import { ProfileView } from '@/modules/profile/components/ProfileView'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 const AdminPage = () => {
   const [value, setValue] = useState(0);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [feedKey, setFeedKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [currentSessionId, setCurrentSessionId] = useState('public-stream');
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -30,13 +34,14 @@ const AdminPage = () => {
 
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role')
+            .select('*')
             .eq('id', user.id)
             .single();
 
         if (profile?.role !== 'admin') {
             router.push('/student');
         } else {
+            setUserProfile(profile);
             setLoading(false);
         }
     };
@@ -52,13 +57,6 @@ const AdminPage = () => {
       if (session) {
           setCurrentSessionId(session);
       } else {
-          // Default based on tab?
-          // If tab is classes, maybe default to class-1 or keep previous?
-          // For now, let's default to public-stream if not specified, 
-          // but if we are in classes tab, we might want to handle it differently.
-          // However, if the user navigates to classes tab without session, maybe they just want to see the list?
-          // But tab 1 is LiveSession. Tab 5 is Manage Classes.
-          // So Tab 1 is "Stream a Class".
           setCurrentSessionId('public-stream');
       }
 
@@ -66,10 +64,10 @@ const AdminPage = () => {
           setValue(4); // Reels tab
       } else if (tab) {
           if (tab === 'live') setValue(0);
-          if (tab === 'classes') setValue(1);
           if (tab === 'reminders') setValue(2);
           if (tab === 'reels') setValue(4);
           if (tab === 'manage-classes') setValue(5);
+          if (tab === 'profile') setValue(6);
       }
   }, [searchParams]);
 
@@ -82,23 +80,24 @@ const AdminPage = () => {
           const newUrl = new URL(window.location.href);
           if (newValue === 0) {
               newUrl.searchParams.set('tab', 'live');
-              newUrl.searchParams.delete('session');
-              setCurrentSessionId('public-stream');
-          }
-          if (newValue === 1) {
-              newUrl.searchParams.set('tab', 'classes');
-              // If switching to classes tab manually, maybe default to class-1?
+              // If we want to support dynamic sessions in the main live tab, we can keep the session param if present, or default to public-stream
               if (!newUrl.searchParams.get('session')) {
-                  newUrl.searchParams.set('session', 'class-1');
-                  setCurrentSessionId('class-1');
+                  setCurrentSessionId('public-stream');
+              } else {
+                  setCurrentSessionId(newUrl.searchParams.get('session') || 'public-stream');
               }
           }
           if (newValue === 2) newUrl.searchParams.set('tab', 'reminders');
           if (newValue === 4) newUrl.searchParams.set('tab', 'reels');
           if (newValue === 5) newUrl.searchParams.set('tab', 'manage-classes');
+          if (newValue === 6) newUrl.searchParams.set('tab', 'profile');
           
           if (newValue !== 4) newUrl.searchParams.delete('reelId');
-          if (newValue !== 1 && newValue !== 0) newUrl.searchParams.delete('session');
+          // We don't delete session for tab 0 anymore if we want to support classes there, 
+          // but typically 'Go Live' implies the main stream. 
+          // If the user wants to stream a specific class, they might need a way to select it.
+          // For now, let's assume 'Go Live' uses the current session ID if set, or public-stream.
+          if (newValue !== 0) newUrl.searchParams.delete('session');
           
           window.history.replaceState({}, '', newUrl.toString());
       }
@@ -123,38 +122,161 @@ const AdminPage = () => {
 
   return (
     <Box sx={{ height: '100vh', width: '100vw', bgcolor: 'black', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', bgcolor: '#111' }}>
-          <Button 
-            variant="outlined" 
-            color="error" 
-            size="small" 
-            startIcon={<Logout />} 
-            onClick={handleLogout}
-          >
-            Logout
-          </Button>
+      {/* Header */}
+      <Box sx={{ 
+        p: 2, 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        bgcolor: '#111',
+        borderBottom: '1px solid rgba(255,255,255,0.1)'
+      }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton
+                sx={{ display: { xs: 'flex', md: 'none' }, color: 'white', mr: 1 }}
+                onClick={() => setMobileOpen(true)}
+            >
+                <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #ff0055, #ff00aa)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', ml: 1 }}>
+                D4NCE <Typography component="span" variant="caption" sx={{ color: '#666', ml: 1 }}>ADMIN</Typography>
+            </Typography>
+          </Box>
+
+          {/* Desktop Header Actions */}
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
+              <IconButton 
+                onClick={() => handleTabChange(5)} 
+                sx={{ color: value === 5 ? '#ff0055' : 'var(--text-secondary)' }}
+              >
+                <ManageAccounts />
+              </IconButton>
+              
+              <IconButton 
+                onClick={() => handleTabChange(2)} 
+                sx={{ color: value === 2 ? '#ff0055' : 'var(--text-secondary)' }}
+              >
+                <Notifications />
+              </IconButton>
+
+              <IconButton 
+                onClick={() => handleTabChange(6)}
+                sx={{ 
+                    p: 0.5,
+                    border: value === 6 ? '2px solid #ff0055' : '2px solid transparent',
+                    transition: 'all 0.2s'
+                }}
+              >
+                <Avatar 
+                    src={userProfile?.avatar_url} 
+                    sx={{ width: 32, height: 32 }}
+                >
+                    <Person />
+                </Avatar>
+              </IconButton>
+
+              <IconButton 
+                onClick={handleLogout}
+                sx={{ color: 'var(--text-secondary)', ml: 1 }}
+              >
+                <Logout fontSize="small" />
+              </IconButton>
+          </Box>
       </Box>
+
+      {/* Mobile Drawer */}
+      <Drawer
+        anchor="left"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        PaperProps={{
+            sx: { width: 280, bgcolor: '#1a1a1a', color: 'white' }
+        }}
+      >
+        <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <Avatar 
+                src={userProfile?.avatar_url} 
+                sx={{ width: 48, height: 48, border: '2px solid #ff0055' }}
+            >
+                <Person />
+            </Avatar>
+            <Box>
+                <Typography variant="subtitle1" fontWeight="bold">{userProfile?.full_name || 'Admin'}</Typography>
+                <Typography variant="caption" sx={{ color: '#888' }}>@{userProfile?.username || 'admin'}</Typography>
+            </Box>
+        </Box>
+        <List sx={{ pt: 2 }}>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(6); setMobileOpen(false); }} selected={value === 6}>
+                    <ListItemIcon sx={{ color: value === 6 ? '#ff0055' : '#888' }}><Person /></ListItemIcon>
+                    <ListItemText primary="Profile" sx={{ color: value === 6 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(5); setMobileOpen(false); }} selected={value === 5}>
+                    <ListItemIcon sx={{ color: value === 5 ? '#ff0055' : '#888' }}><ManageAccounts /></ListItemIcon>
+                    <ListItemText primary="Manage Classes" sx={{ color: value === 5 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(2); setMobileOpen(false); }} selected={value === 2}>
+                    <ListItemIcon sx={{ color: value === 2 ? '#ff0055' : '#888' }}><Notifications /></ListItemIcon>
+                    <ListItemText primary="Reminders" sx={{ color: value === 2 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
+            <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
+            <ListItem disablePadding>
+                <ListItemButton onClick={handleLogout}>
+                    <ListItemIcon sx={{ color: '#888' }}><Logout /></ListItemIcon>
+                    <ListItemText primary="Logout" />
+                </ListItemButton>
+            </ListItem>
+        </List>
+      </Drawer>
+
+      {/* Main Content */}
       <Box sx={{ flex: 1, overflow: 'hidden', pb: 7, position: 'relative' }}>
-        {value === 0 && <LiveSession role="admin" sessionId="public-stream" />}
-        {value === 1 && <LiveSession role="admin" sessionId={currentSessionId} />}
+        {value === 0 && <LiveSession role="admin" sessionId={currentSessionId} />}
         {value === 2 && <ReminderList role="admin" />}
         {value === 4 && <ReelsFeed key={feedKey} />}
         {value === 5 && <ClassesManagement />}
+        {value === 6 && <ProfileView />}
       </Box>
       
+      {/* Bottom Navigation */}
       <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, bgcolor: '#111', zIndex: 100 }} elevation={3}>
         <BottomNavigation
           showLabels
           value={value}
           onChange={(event, newValue) => handleTabChange(newValue)}
-          sx={{ bgcolor: '#111', '& .Mui-selected': { color: '#ff0055' }, '& .MuiBottomNavigationAction-root': { color: '#666' } }}
+          sx={{ 
+            bgcolor: '#111', 
+            '& .Mui-selected': { color: '#ff0055' }, 
+            '& .MuiBottomNavigationAction-root': { color: '#666' },
+            height: 64
+          }}
         >
-          <BottomNavigationAction label="Go Live" icon={<LiveTv />} />
-          <BottomNavigationAction label="Classes" icon={<School />} />
-          <BottomNavigationAction label="Reminders" icon={<Alarm />} />
-          <BottomNavigationAction label="New Reel" value="upload" icon={<Add />} />
-          <BottomNavigationAction label="Reels" icon={<VideoLibrary />} />
-          <BottomNavigationAction label="Manage" icon={<ManageAccounts />} />
+          <BottomNavigationAction label="Go Live" value={0} icon={<LiveTv />} />
+          
+          <BottomNavigationAction 
+            label="Create" 
+            value="upload" 
+            icon={
+                <AddCircle sx={{ 
+                    fontSize: 44, 
+                    color: '#ff0055',
+                    bgcolor:"#FEFEFE",
+                    borderRadius:"50%",
+                    padding:"0px",
+                    filter: 'drop-shadow(0 0 8px rgba(255, 0, 85, 0.4))',
+                }} />
+            } 
+            sx={{
+                '& .MuiBottomNavigationAction-label': { display: 'none' }
+            }}
+          />
+          
+          <BottomNavigationAction label="Reels" value={4} icon={<VideoLibrary />} />
         </BottomNavigation>
       </Paper>
 

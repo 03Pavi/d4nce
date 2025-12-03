@@ -1,12 +1,13 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { Box, BottomNavigation, BottomNavigationAction, Paper, Button, CircularProgress } from '@mui/material'
-import { LiveTv, Alarm, VideoLibrary, Add, Logout, LibraryBooks } from '@mui/icons-material'
+import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Badge } from '@mui/material'
+import { LiveTv, VideoLibrary, AddCircle, Logout, LibraryBooks, Notifications, Person } from '@mui/icons-material'
 import { LiveSession } from '@/modules/live-class/components/LiveSession'
 import { ReminderList } from '@/modules/reminders/components/ReminderList'
 import { ReelsFeed } from '@/modules/reels/components/ReelsFeed'
 import { UploadReelDialog } from '@/modules/reels/components/UploadReelDialog'
 import { StudentClassesView } from '@/modules/classes/components/StudentClassesView'
+import { ProfileView } from '@/modules/profile/components/ProfileView'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -16,6 +17,8 @@ const StudentPage = () => {
   const [feedKey, setFeedKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [currentSessionId, setCurrentSessionId] = useState('public-stream');
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -30,13 +33,14 @@ const StudentPage = () => {
 
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role')
+            .select('*')
             .eq('id', user.id)
             .single();
 
         if (profile?.role === 'admin') {
             router.push('/admin');
         } else {
+            setUserProfile(profile);
             setLoading(false);
         }
     };
@@ -62,6 +66,7 @@ const StudentPage = () => {
           if (tab === 'reminders') setValue(1);
           if (tab === 'reels') setValue(3);
           if (tab === 'my-classes') setValue(4);
+          if (tab === 'profile') setValue(5);
       }
   }, [searchParams]);
 
@@ -74,20 +79,17 @@ const StudentPage = () => {
           const newUrl = new URL(window.location.href);
           if (newValue === 0) {
               newUrl.searchParams.set('tab', 'live');
-              // If switching to live tab manually, reset to public stream unless session is already set?
-              // Or maybe we should always reset to public stream if clicking the tab?
-              // For now let's keep it simple. If they click the tab, maybe they want the public stream.
               if (!newUrl.searchParams.get('session')) {
-                  // If no session param, ensure state is public-stream (handled by useEffect on load, but here we are navigating)
                   setCurrentSessionId('public-stream');
               }
           }
           if (newValue === 1) newUrl.searchParams.set('tab', 'reminders');
           if (newValue === 3) newUrl.searchParams.set('tab', 'reels');
           if (newValue === 4) newUrl.searchParams.set('tab', 'my-classes');
+          if (newValue === 5) newUrl.searchParams.set('tab', 'profile');
           
           if (newValue !== 3) newUrl.searchParams.delete('reelId');
-          if (newValue !== 0) newUrl.searchParams.delete('session'); // Clear session if leaving live tab
+          if (newValue !== 0) newUrl.searchParams.delete('session');
           
           window.history.replaceState({}, '', newUrl.toString());
       }
@@ -112,36 +114,105 @@ const StudentPage = () => {
 
   return (
     <Box sx={{ height: '100vh', width: '100vw', bgcolor: 'black', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', bgcolor: '#111' }}>
-          <Button 
-            variant="outlined" 
-            color="error" 
-            size="small" 
-            startIcon={<Logout />} 
-            onClick={handleLogout}
-          >
-            Logout
-          </Button>
+      {/* Header */}
+      <Box sx={{ 
+        p: 2, 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        bgcolor: '#111',
+        borderBottom: '1px solid rgba(255,255,255,0.1)'
+      }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {/* Logo or Title */}
+            <Typography variant="h6" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #ff0055, #ff00aa)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', ml: 1 }}>
+                D4NCE
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton 
+                onClick={() => handleTabChange(4)} 
+                sx={{ color: value === 4 ? '#ff0055' : 'var(--text-secondary)' }}
+              >
+                <LibraryBooks />
+              </IconButton>
+              
+              <IconButton 
+                onClick={() => handleTabChange(1)} 
+                sx={{ color: value === 1 ? '#ff0055' : 'var(--text-secondary)' }}
+              >
+                <Notifications />
+              </IconButton>
+
+              <IconButton 
+                onClick={() => handleTabChange(5)}
+                sx={{ 
+                    p: 0.5,
+                    border: value === 5 ? '2px solid #ff0055' : '2px solid transparent',
+                    transition: 'all 0.2s'
+                }}
+              >
+                <Avatar 
+                    src={userProfile?.avatar_url} 
+                    sx={{ width: 32, height: 32 }}
+                >
+                    <Person />
+                </Avatar>
+              </IconButton>
+
+              <IconButton 
+                onClick={handleLogout}
+                sx={{ color: 'var(--text-secondary)', ml: 1 }}
+              >
+                <Logout fontSize="small" />
+              </IconButton>
+          </Box>
       </Box>
+
+      {/* Main Content */}
       <Box sx={{ flex: 1, overflow: 'hidden', pb: 7, position: 'relative' }}>
         {value === 0 && <LiveSession role="student" isPaid={false} sessionId={currentSessionId} />}
         {value === 1 && <ReminderList role="student" />}
         {value === 3 && <ReelsFeed key={feedKey} />}
         {value === 4 && <StudentClassesView />}
+        {value === 5 && <ProfileView />}
       </Box>
       
+      {/* Bottom Navigation */}
       <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, bgcolor: '#111', zIndex: 100 }} elevation={3}>
         <BottomNavigation
           showLabels
           value={value}
           onChange={(event, newValue) => handleTabChange(newValue)}
-          sx={{ bgcolor: '#111', '& .Mui-selected': { color: '#00e5ff' }, '& .MuiBottomNavigationAction-root': { color: '#666' } }}
+          sx={{ 
+            bgcolor: '#111', 
+            '& .Mui-selected': { color: '#ff0055' }, 
+            '& .MuiBottomNavigationAction-root': { color: '#666' },
+            height: 64
+          }}
         >
-          <BottomNavigationAction label="Live" icon={<LiveTv />} />
-          <BottomNavigationAction label="Reminders" icon={<Alarm />} />
-          <BottomNavigationAction label="New Reel" value="upload" icon={<Add />} />
-          <BottomNavigationAction label="Reels" icon={<VideoLibrary />} />
-          <BottomNavigationAction label="My Classes" icon={<LibraryBooks />} />
+          <BottomNavigationAction label="Live" value={0} icon={<LiveTv />} />
+          
+          <BottomNavigationAction 
+            label="Create" 
+            value="upload" 
+            icon={
+                <AddCircle sx={{ 
+                    fontSize: 44, 
+                    color: '#ff0055',
+                    bgcolor:"#FEFEFE",
+                    borderRadius:"50%",
+                    padding:"0px",
+                    filter: 'drop-shadow(0 0 8px rgba(255, 0, 85, 0.4))',
+                }} />
+            } 
+            sx={{
+                '& .MuiBottomNavigationAction-label': { display: 'none' }
+            }}
+          />
+          
+          <BottomNavigationAction label="Reels" value={3} icon={<VideoLibrary />} />
         </BottomNavigation>
       </Paper>
 

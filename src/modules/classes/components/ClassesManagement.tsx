@@ -363,10 +363,15 @@ export const ClassesManagement = () => {
                   sx={{ 
                     bgcolor: '#ff0055', 
                     fontWeight: 'bold',
-                    '&:hover': { bgcolor: '#cc0044' } 
+                    '&:hover': { bgcolor: '#cc0044' },
+                    minWidth: { xs: '40px', sm: 'auto' },
+                    px: { xs: 1, sm: 2 },
+                    '& .MuiButton-startIcon': {
+                        margin: { xs: 0, sm: '0 8px 0 -4px' }
+                    }
                   }}
                 >
-                  New Class
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>New Class</Box>
                 </Button>
               </Box>
             </Box>
@@ -566,16 +571,6 @@ export const ClassesManagement = () => {
               placeholder="e.g., Advanced Hip Hop"
               value={newClass.title}
               onChange={(e) => setNewClass({ ...newClass, title: e.target.value })}
-              sx={{ 
-                '& .MuiInputBase-root': { color: 'white' },
-                '& .MuiInputLabel-root': { color: '#aaa' },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-              }}
             />
             <TextField
               label="Description"
@@ -585,16 +580,7 @@ export const ClassesManagement = () => {
               placeholder="Describe the class..."
               value={newClass.description}
               onChange={(e) => setNewClass({ ...newClass, description: e.target.value })}
-              sx={{ 
-                '& .MuiInputBase-root': { color: 'white' },
-                '& .MuiInputLabel-root': { color: '#aaa' },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-              }}
+             
             />
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
               <TextField
@@ -655,32 +641,12 @@ export const ClassesManagement = () => {
                 value={newClass.max_students}
                 onChange={(e) => setNewClass({ ...newClass, max_students: parseInt(e.target.value) || 50 })}
                 inputProps={{ min: 1 }}
-                sx={{ 
-                  '& .MuiInputBase-root': { color: 'white' },
-                  '& .MuiInputLabel-root': { color: '#aaa' },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                    '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-                }}
               />
             </Box>
             <DateTimePicker
               label="Scheduled Date & Time"
               value={newClass.scheduled_at}
               onChange={(newValue) => newValue && setNewClass({ ...newClass, scheduled_at: newValue })}
-              sx={{
-                width: '100%',
-                '& .MuiInputBase-root': { color: 'white' },
-                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.4)' },
-                '& .Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#ff0055' },
-                '& .MuiSvgIcon-root': { color: '#ff0055' },
-                '& .MuiInputLabel-root': { color: '#aaa' },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-              }}
             />
             <TextField
               label="Duration (minutes)"
@@ -689,16 +655,7 @@ export const ClassesManagement = () => {
               value={newClass.duration_minutes}
               onChange={(e) => setNewClass({ ...newClass, duration_minutes: parseInt(e.target.value) || 60 })}
               inputProps={{ min: 15, step: 15 }}
-              sx={{ 
-                '& .MuiInputBase-root': { color: 'white' },
-                '& .MuiInputLabel-root': { color: '#aaa' },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-              }}
+             
             />
           </DialogContent>
           <DialogActions sx={{ p: 2.5, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
@@ -746,16 +703,7 @@ export const ClassesManagement = () => {
               placeholder="e.g., Advanced Hip Hop"
               value={editClass.title}
               onChange={(e) => setEditClass({ ...editClass, title: e.target.value })}
-              sx={{ 
-                '& .MuiInputBase-root': { color: 'white' },
-                '& .MuiInputLabel-root': { color: '#aaa' },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-              }}
+             
             />
             <TextField
               label="Description"
@@ -765,16 +713,7 @@ export const ClassesManagement = () => {
               placeholder="Describe the class..."
               value={editClass.description}
               onChange={(e) => setEditClass({ ...editClass, description: e.target.value })}
-              sx={{ 
-                '& .MuiInputBase-root': { color: 'white' },
-                '& .MuiInputLabel-root': { color: '#aaa' },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-              }}
+             
             />
             <TextField
               label="Session ID *"
@@ -855,16 +794,7 @@ export const ClassesManagement = () => {
               value={editClass.duration_minutes}
               onChange={(e) => setEditClass({ ...editClass, duration_minutes: parseInt(e.target.value) || 60 })}
               inputProps={{ min: 15, step: 15 }}
-              sx={{ 
-                '& .MuiInputBase-root': { color: 'white' },
-                '& .MuiInputLabel-root': { color: '#aaa' },
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                  '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                },
-                '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-              }}
+             
             />
           </DialogContent>
           <DialogActions sx={{ p: 2.5, borderTop: '1px solid rgba(255,255,255,0.1)' }}>

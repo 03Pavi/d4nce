@@ -9,6 +9,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    if(loading) return
     event.preventDefault()
     setLoading(true)
     setError('')
@@ -95,7 +96,6 @@ const LoginPage = () => {
             variant="contained" 
             fullWidth 
             size="large"
-            disabled={loading}
             sx={{ mt: 3, bgcolor: 'var(--primary)', '&:hover': { bgcolor: 'var(--primary)', filter: 'brightness(0.8)' } }}
         >
             {loading ? 'Signing In...' : 'Sign In'}
@@ -104,16 +104,6 @@ const LoginPage = () => {
         <Box sx={{ mt: 2, textAlign: 'center' }}>
             <Typography variant="body2" sx={{ color: 'var(--text-secondary)' }}>
                 Don't have an account? <Link href="/signup" style={{ color: 'var(--primary)' }}>Sign up</Link>
-            </Typography>
-        </Box>
-        
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
-                Demo: admin@d4nce.com / admin
-            </Typography>
-            <br/>
-            <Typography variant="caption" sx={{ color: 'var(--text-secondary)' }}>
-                Demo: student@d4nce.com / student
             </Typography>
         </Box>
       </Box>

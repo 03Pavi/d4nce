@@ -1,20 +1,22 @@
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import StoreProvider from "@/shared/providers/store-provider";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import "./globals.scss";
+
+import ThemeProvider from "@/shared/providers/theme-provider";
 
 export const metadata: Metadata = {
   title: "D4NCE",
   description: "The ultimate video dance class experience.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/app-logo.svg",
-    apple: "/icons/icon-192x192.png",
+    icon: "/icons/icon.png",
+    apple: "/icons/icon.png",
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "D4NCE",
   },
   formatDetection: {
@@ -33,6 +35,14 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#ff0055",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -40,19 +50,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
-        <meta name="theme-color" content="#ff0055" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="D4NCE" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-      </head>
       <body suppressHydrationWarning={true}>
         <StoreProvider>
-          {children}
-          <InstallPrompt />
+          <ThemeProvider>
+            {children}
+            <InstallPrompt />
+          </ThemeProvider>
         </StoreProvider>
       </body>
     </html>

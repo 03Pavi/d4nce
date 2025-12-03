@@ -27,7 +27,19 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
         if (role === 'admin') {
           try {
             console.log('Requesting local stream...');
-            localMediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            // Start with a balanced quality, will be adjusted dynamically
+            localMediaStream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 24 }
+              },
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+              }
+            });
             if (!mounted) {
               localMediaStream.getTracks().forEach(track => track.stop());
               return;
@@ -36,8 +48,6 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
             setLocalStream(localMediaStream);
           } catch (err) {
             console.error('Failed to get local stream', err);
-            // If we can't get stream, maybe we shouldn't proceed as admin? 
-            // Or proceed without stream? For now, let's return to avoid broken state.
             return;
           }
         }
@@ -76,7 +86,7 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
               console.log(`Local track: ${track.kind}, enabled: ${track.enabled}, state: ${track.readyState}, label: ${track.label}`);
             });
 
-            call.answer(localMediaStream);
+            call.answer(localMediaStream); // Answer without static bandwidth limit
 
             call.on('close', () => {
               console.log("Call with student ended");
@@ -215,6 +225,37 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
       }
     };
   }, [role, channelName]); // Removed supabase from deps to avoid re-running
+
+  // Dynamic Quality Adjustment
+  useEffect(() => {
+    if (!localStream || role !== 'admin') return;
+
+    const adjustQuality = async () => {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (!videoTrack) return;
+
+      let constraints: MediaTrackConstraints = {};
+
+      if (connectedCount <= 3) {
+        console.log(`Few users (${connectedCount}), switching to High Quality (1080p)`);
+        constraints = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
+      } else if (connectedCount <= 8) {
+        console.log(`Medium load (${connectedCount}), switching to HD (720p)`);
+        constraints = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24 } };
+      } else {
+        console.log(`High load (${connectedCount}), switching to Low Quality (480p)`);
+        constraints = { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } };
+      }
+
+      try {
+        await videoTrack.applyConstraints(constraints);
+      } catch (e) {
+        console.error("Failed to apply constraints:", e);
+      }
+    };
+
+    adjustQuality();
+  }, [connectedCount, localStream, role]);
 
   // Separate cleanup for local stream when component unmounts
   // This useEffect is no longer needed as cleanup is handled in the main useEffect
