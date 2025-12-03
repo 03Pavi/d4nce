@@ -7,16 +7,8 @@ import {
   Button, 
   Grid, 
   IconButton, 
-  CircularProgress,
-  Dialog,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  useTheme,
-  useMediaQuery
-} from '@mui/material'
-import { Edit, Delete, Close, Settings } from '@mui/icons-material'
+  CircularProgress} from '@mui/material'
+import { Edit, Delete } from '@mui/icons-material'
 import { createClient } from '@/lib/supabase/client'
 import { EditProfileDialog } from './edit-profile-dialog'
 

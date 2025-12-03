@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography } from '@mui/material'
 import { Alarm } from '@mui/icons-material'
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
@@ -17,9 +17,15 @@ export const AddReminderDialog = ({ open, onClose, onAdd }: AddReminderDialogPro
         forGroup: '' 
     });
 
+    useEffect(() => {
+        if (open) {
+            setNewReminder({ title: '', time: dayjs(), forGroup: '' });
+        }
+    }, [open]);
+
     const handleAdd = () => {
+        console.log('Submitting reminder:', newReminder);
         onAdd(newReminder.title, newReminder.time, newReminder.forGroup);
-        setNewReminder({ title: '', time: dayjs(), forGroup: '' });
     };
 
     return (

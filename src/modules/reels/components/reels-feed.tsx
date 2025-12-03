@@ -4,6 +4,8 @@ import { Box, CircularProgress, Container } from '@mui/material'
 import { createClient } from '@/lib/supabase/client'
 import { CommentsDrawer } from './comments-drawer'
 import { EditReelDialog } from './edit-reel-dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import PullToRefresh from 'react-pull-to-refresh';
 import { ReelItem } from './reel-item'
 import { ProfileDialog } from '@/modules/profile/components/profile-dialog'
 
@@ -143,15 +145,25 @@ export const ReelsFeed = () => {
         setProfileOpen(true);
     };
 
-    const handleDeleteReel = async (reelId: string) => {
-        if (!confirm('Are you sure you want to delete this reel?')) return;
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
-        const { error } = await supabase.from('reels').delete().eq('id', reelId);
+    const handleDeleteReelClick = (reelId: string) => {
+        setDeleteId(reelId);
+        setConfirmOpen(true);
+    };
+
+    const handleConfirmDeleteReel = async () => {
+        if (!deleteId) return;
+
+        const { error } = await supabase.from('reels').delete().eq('id', deleteId);
         if (!error) {
-            setReels(prev => prev.filter(r => r.id !== reelId));
+            setReels(prev => prev.filter(r => r.id !== deleteId));
         } else {
             alert('Failed to delete reel.');
         }
+        setConfirmOpen(false);
+        setDeleteId(null);
     };
 
     const handleEditReel = (reel: any) => {
@@ -230,7 +242,7 @@ export const ReelsFeed = () => {
   return (
     <>
         <Container maxWidth="lg" disableGutters sx={{ height: '100%' }}>
-            <Box
+          <Box
             ref={containerRef}
             onScroll={handleScroll}
             className="no-scrollbar"
@@ -251,7 +263,7 @@ export const ReelsFeed = () => {
                 onToggleLike={handleToggleLike}
                 onOpenComments={handleOpenComments}
                 onOpenProfile={handleOpenProfile}
-                onDeleteReel={handleDeleteReel}
+                onDeleteReel={handleDeleteReelClick}
                 onEditReel={handleEditReel}
             />
         ))}
@@ -282,6 +294,14 @@ export const ReelsFeed = () => {
             onClose={() => setEditReelOpen(false)}
             reel={editingReel}
             onUpdate={handleReelUpdated}
+        />
+
+        <ConfirmDialog 
+            open={confirmOpen} 
+            title="Delete Reel" 
+            message="Are you sure you want to delete this reel? This action cannot be undone." 
+            onConfirm={handleConfirmDeleteReel} 
+            onCancel={() => setConfirmOpen(false)} 
         />
     </>
   )

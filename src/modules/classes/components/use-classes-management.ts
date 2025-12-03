@@ -144,6 +144,8 @@ export const useClassesManagement = () => {
   }
 
   const handleDeleteClass = async (classId: string) => {
+    // Confirmation handled by UI component
+
     const { error } = await supabase
       .from('classes')
       .delete()
@@ -191,6 +193,8 @@ export const useClassesManagement = () => {
   }
 
   const handleRemoveEnrollment = async (enrollmentId: string) => {
+    if (!confirm('Are you sure you want to remove this student from the class?')) return
+
     const { error } = await supabase
       .from('class_enrollments')
       .delete()
@@ -296,6 +300,7 @@ export const useClassesManagement = () => {
     handleUpdateClass,
     handleJoinClass,
     toggleStudentSelection,
-    getAvailableStudents
+    getAvailableStudents,
+    fetchClasses
   }
 }

@@ -1,12 +1,14 @@
 'use client'
 import React, { useState } from 'react'
-import { Box, Button, TextField, Typography, Alert } from '@mui/material'
+import { Box, Button, TextField, Typography, Alert, InputAdornment, IconButton } from '@mui/material'
+import { Visibility, VisibilityOff } from '@mui/icons-material'
 import { login } from '@/app/auth/actions'
 import Link from 'next/link'
 
 const LoginPage = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     if(loading) return
@@ -74,10 +76,24 @@ const LoginPage = () => {
         <TextField
             name="password"
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             fullWidth
             margin="normal"
             required
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                    sx={{ color: 'var(--text-secondary)' }}
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
             sx={{
             '& .MuiOutlinedInput-root': {
               color: 'var(--text-primary)',

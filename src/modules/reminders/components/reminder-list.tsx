@@ -1,13 +1,15 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import { Box, Typography, Button, Snackbar, Alert, Card, CardContent, Chip, Fade, Container, CircularProgress, IconButton } from '@mui/material'
-import { Delete, Add, Alarm, NotificationsActive, AccessTime, Group } from '@mui/icons-material'
+import { Delete, Add, Alarm, NotificationsActive, AccessTime, Group, Refresh } from '@mui/icons-material'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import { createClient } from '@/lib/supabase/client';
 import { AddReminderDialog } from './add-reminder-dialog';
 import { PushNotificationDialog } from './push-notification-dialog';
+import PullToRefresh from 'react-pull-to-refresh';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 interface Reminder {
     id: string;
@@ -34,6 +36,8 @@ export const ReminderList = ({ role }: ReminderListProps) => {
     useEffect(() => {
         fetchReminders();
         requestNotificationPermission();
+        cleanupExpiredReminders();
+        const interval = setInterval(cleanupExpiredReminders, 60000);
 
         // Realtime subscription
         const channel = supabase
@@ -55,8 +59,21 @@ export const ReminderList = ({ role }: ReminderListProps) => {
 
         return () => {
             supabase.removeChannel(channel);
+            clearInterval(interval);
         };
     }, []);
+
+    const cleanupExpiredReminders = async () => {
+        const now = new Date().toISOString();
+        const { error } = await supabase
+            .from('reminders')
+            .delete()
+            .lt('scheduled_time', now);
+        
+        if (error) {
+            console.error('Error cleaning up expired reminders:', error);
+        }
+    };
 
     const fetchReminders = async () => {
         setLoading(true);
@@ -64,6 +81,10 @@ export const ReminderList = ({ role }: ReminderListProps) => {
             .from('reminders')
             .select('*')
             .order('scheduled_time', { ascending: true });
+        
+        if (error) {
+            console.error('Error fetching reminders:', error);
+        }
         
         if (data) {
             setReminders(data);
@@ -92,27 +113,43 @@ export const ReminderList = ({ role }: ReminderListProps) => {
             return;
         }
         
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { error } = await supabase.from('reminders').insert({
             title: title,
             scheduled_time: time.toISOString(),
-            for_group: forGroup || 'All'
+            for_group: forGroup || 'All',
+            created_by: user?.id
         });
 
         if (error) {
-            setSnackbar({ open: true, message: 'Failed to add reminder', severity: 'error' });
+            console.error('Error adding reminder:', error);
+            setSnackbar({ open: true, message: 'Failed to add reminder: ' + error.message, severity: 'error' });
         } else {
             setOpen(false);
             setSnackbar({ open: true, message: 'Reminder added successfully!', severity: 'success' });
         }
     }
 
-    const handleDelete = async (id: string) => {
-        const { error } = await supabase.from('reminders').delete().eq('id', id);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+
+    const handleDeleteClick = (id: string) => {
+        setDeleteId(id);
+        setConfirmOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteId) return;
+        
+        const { error } = await supabase.from('reminders').delete().eq('id', deleteId);
         if (error) {
              setSnackbar({ open: true, message: 'Failed to delete reminder', severity: 'error' });
         } else {
             setSnackbar({ open: true, message: 'Reminder deleted', severity: 'info' });
         }
+        setConfirmOpen(false);
+        setDeleteId(null);
     }
 
     const handleSendPush = (message: string) => {
@@ -127,22 +164,45 @@ export const ReminderList = ({ role }: ReminderListProps) => {
         setNotificationOpen(false);
     }
 
+
+
+// ... (inside component)
+    const handleRefresh = async () => {
+        await fetchReminders();
+    };
+
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <Box sx={{ 
-                minHeight: '100vh',
-                background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)',
-                py: { xs: 2, md: 4 }
-            }}>
-                <Container maxWidth="lg">
+            <PullToRefresh 
+                onRefresh={handleRefresh} 
+                style={{ minHeight: '100vh' }}
+            >
+                <Box sx={{ 
+                    minHeight: '100vh',
+                    background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)',
+                    py: { xs: 2, md: 4 }
+                }}>
+                    <Container maxWidth="lg">
                     <Box sx={{ color: 'white' }}>
                         {/* Header Section */}
                         <Box sx={{ mb: 4 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                 <Box>
-                                    <Typography variant="h5" fontWeight="bold" sx={{ mb: 0.5 }}>
-                                        {role === 'admin' ? 'Manage Reminders' : 'Class Reminders'}
-                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                        <Typography variant="h5" fontWeight="bold">
+                                            {role === 'admin' ? 'Manage Reminders' : 'Class Reminders'}
+                                        </Typography>
+                                        <IconButton 
+                                            onClick={fetchReminders} 
+                                            size="small"
+                                            sx={{ 
+                                                color: '#888', 
+                                                '&:hover': { color: 'white', bgcolor: 'rgba(255,255,255,0.1)' } 
+                                            }}
+                                        >
+                                            <Refresh fontSize="small" />
+                                        </IconButton>
+                                    </Box>
                                     <Typography variant="body2" sx={{ color: '#888' }}>
                                         {role === 'admin' 
                                             ? 'Create and manage reminders for students'
@@ -287,7 +347,7 @@ export const ReminderList = ({ role }: ReminderListProps) => {
 
                                                     {role === 'admin' && (
                                                         <IconButton 
-                                                            onClick={() => handleDelete(reminder.id)} 
+                                                            onClick={() => handleDeleteClick(reminder.id)} 
                                                             sx={{ 
                                                                 color: '#666',
                                                                 '&:hover': { 
@@ -336,7 +396,15 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                         {snackbar.message}
                     </Alert>
                 </Snackbar>
+                <ConfirmDialog 
+                    open={confirmOpen} 
+                    title="Delete Reminder" 
+                    message="Are you sure you want to delete this reminder? This action cannot be undone." 
+                    onConfirm={handleConfirmDelete} 
+                    onCancel={() => setConfirmOpen(false)} 
+                />
             </Box>
+            </PullToRefresh>
         </LocalizationProvider>
     )
 }

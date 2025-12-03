@@ -10,11 +10,13 @@ import {
   Alert,
   Container,
   Fade,
-  Grid
+  Grid,
+  CircularProgress
 } from '@mui/material'
 import { 
   Add, 
-  School
+  School,
+  Refresh
 } from '@mui/icons-material'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
@@ -23,6 +25,8 @@ import { EditClassDialog } from './edit-class-dialog'
 import { EnrollStudentsDialog } from './enroll-students-dialog'
 import { useClassesManagement } from './use-classes-management'
 import { ClassCard } from './class-card'
+import PullToRefresh from 'react-pull-to-refresh';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 export const ClassesManagement = () => {
   const {
@@ -52,11 +56,16 @@ export const ClassesManagement = () => {
     handleUpdateClass,
     handleJoinClass,
     toggleStudentSelection,
-    getAvailableStudents
+    getAvailableStudents,
+    fetchClasses
   } = useClassesManagement()
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <PullToRefresh 
+        onRefresh={async () => await fetchClasses()} 
+        style={{ minHeight: '100vh' }}
+      >
       <Box sx={{ 
         minHeight: '100vh',
         background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)',
@@ -190,6 +199,7 @@ export const ClassesManagement = () => {
           </Alert>
         </Snackbar>
       </Box>
+      </PullToRefresh>
     </LocalizationProvider>
   )
 }
