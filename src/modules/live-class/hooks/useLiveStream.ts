@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
-export const useLiveStream = (role: 'admin' | 'student', channelName: string = 'room-1', userName: string = 'User') => {
+export const useLiveStream = (role: 'admin' | 'student', channelName: string = 'room-1', userName: string = 'User', enabled: boolean = true) => {
   const [peerId, setPeerId] = useState<string>('');
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -16,6 +16,8 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
   const supabase = createClient();
 
   useEffect(() => {
+    if (!enabled) return;
+
     let mounted = true;
     let currentPeer: any = null;
     let currentChannel: any = null;
@@ -237,7 +239,7 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
         localMediaStream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [role, channelName, userName]);
+  }, [role, channelName, userName, enabled]);
 
   // Aggressive Dynamic Quality Adjustment for Scalability
   useEffect(() => {

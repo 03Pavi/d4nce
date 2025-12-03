@@ -40,33 +40,34 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
         fetchProfile();
     }, [role]);
 
-    const { localStream, remoteStream, remoteStreams, isConnected, chatMessages, sendChatMessage, connectedCount } = useLiveStream(isLive ? role : 'student', sessionId, userName);
+    const { localStream, remoteStream, remoteStreams, isConnected, chatMessages, sendChatMessage, connectedCount } = useLiveStream(isLive ? role : 'student', sessionId, userName, isLive);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [pinnedStreamId, setPinnedStreamId] = useState<string | null>(null);
     const [showGrid, setShowGrid] = useState(false);
     const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
 
     const [showChat, setShowChat] = useState(true);
-    const [isMuted, setIsMuted] = useState(false);
-    const [isVideoStopped, setIsVideoStopped] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
+    const [isVideoStopped, setIsVideoStopped] = useState(true);
 
-    const toggleMute = () => {
+    const toggleMute = () => setIsMuted(!isMuted);
+    const toggleVideo = () => setIsVideoStopped(!isVideoStopped);
+
+    useEffect(() => {
         if (localStream) {
             localStream.getAudioTracks().forEach(track => {
-                track.enabled = !track.enabled;
+                track.enabled = !isMuted;
             });
-            setIsMuted(!isMuted);
         }
-    };
+    }, [localStream, isMuted]);
 
-    const toggleVideo = () => {
+    useEffect(() => {
         if (localStream) {
             localStream.getVideoTracks().forEach(track => {
-                track.enabled = !track.enabled;
+                track.enabled = !isVideoStopped;
             });
-            setIsVideoStopped(!isVideoStopped);
         }
-    };
+    }, [localStream, isVideoStopped]);
 
     // Long press logic
     const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -176,7 +177,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                                 Ready to join the session?
                             </Typography>
                             <Button variant="contained" color="error" startIcon={<Videocam />} onClick={() => setIsLive(true)} sx={{ mt: 2 }}>
-                                Join with Video
+                                Join Class
                             </Button>
                         </Box>
                      )}
