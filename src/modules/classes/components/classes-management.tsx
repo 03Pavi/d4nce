@@ -80,7 +80,6 @@ export const ClassesManagement = () => {
       <PullToRefresh 
         onRefresh={async () => await fetchClasses()} 
         style={{ minHeight: '100vh' }}
-        loading={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} color="secondary" /></Box>}
       >
       <Box sx={{ 
         minHeight: '100vh',
