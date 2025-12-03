@@ -1,8 +1,9 @@
-'use client'
 import React, { useState, useEffect, useRef } from 'react'
-import { Box, Button, Typography, TextField, Chip, Container } from '@mui/material'
-import { Send, Videocam, Mic, VideocamOff } from '@mui/icons-material'
+import { Box, Button, Typography, TextField, Chip, Container, Grid, IconButton, Dialog, AppBar, Toolbar, Slide } from '@mui/material'
+import { TransitionProps } from '@mui/material/transitions';
+import { Send, Videocam, Mic, VideocamOff, GridView, Close, PushPin } from '@mui/icons-material'
 import { useLiveStream } from '../hooks/useLiveStream'
+import { createClient } from '@/lib/supabase/client'
 
 interface LiveSessionProps {
     role: 'admin' | 'student';
@@ -11,22 +12,84 @@ interface LiveSessionProps {
     sessionId?: string;
 }
 
+const Transition = React.forwardRef(function Transition(
+  props: TransitionProps & {
+    children: React.ReactElement;
+  },
+  ref: React.Ref<unknown>,
+) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
+
 export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessionId = 'class-1' }: LiveSessionProps) => {
-    const [isLive, setIsLive] = useState(role === 'student'); 
-    const { localStream, remoteStream, isConnected, chatMessages, sendChatMessage, connectedCount } = useLiveStream(isLive ? role : 'student', sessionId);
+    const [userName, setUserName] = useState<string>(role === 'admin' ? 'Instructor' : 'Student');
+    // Auto-join for admin, manual for student? Or manual for both?
+    // Let's make it manual for everyone to "Join Session"
+    const [isLive, setIsLive] = useState(false); 
+    
+    // Fetch user profile for name
+    useEffect(() => {
+        const fetchProfile = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single();
+                if (profile) {
+                    setUserName(profile.full_name || profile.username || (role === 'admin' ? 'Instructor' : 'Student'));
+                }
+            }
+        };
+        fetchProfile();
+    }, [role]);
+
+    const { localStream, remoteStream, remoteStreams, isConnected, chatMessages, sendChatMessage, connectedCount } = useLiveStream(isLive ? role : 'student', sessionId, userName);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const [pinnedStreamId, setPinnedStreamId] = useState<string | null>(null);
+    const [showGrid, setShowGrid] = useState(false);
+    const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+
+    // Long press logic
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const isLongPress = useRef(false);
+
+    const handleStart = (stream: MediaStream) => {
+        isLongPress.current = false;
+        timerRef.current = setTimeout(() => {
+            isLongPress.current = true;
+            setPreviewStream(stream);
+        }, 500);
+    };
+
+    const handleEnd = () => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+        setPreviewStream(null);
+    };
+
+    const handleClick = (peerId: string | null) => {
+        if (!isLongPress.current) {
+            setPinnedStreamId(peerId);
+            setShowGrid(false);
+        }
+    };
+
+    // Determine which stream to show in main view
+    // Default: If pinned, show pinned.
+    // Else if admin is present (and I am student), show admin? 
+    // But we don't know which one is admin easily without metadata.
+    // For now, default to the first remote stream if available, else local.
+    const mainStream = pinnedStreamId && remoteStreams[pinnedStreamId] 
+        ? remoteStreams[pinnedStreamId] 
+        : (Object.values(remoteStreams)[0] || localStream);
 
     useEffect(() => {
-        if (videoRef.current) {
-            if (role === 'admin' && localStream) {
-                console.log('Setting local stream to video element');
-                videoRef.current.srcObject = localStream;
-            } else if (role === 'student' && remoteStream) {
-                console.log('Setting remote stream to video element');
-                videoRef.current.srcObject = remoteStream;
-            }
+        if (videoRef.current && mainStream) {
+            console.log('Setting main stream to video element');
+            videoRef.current.srcObject = mainStream;
         }
-    }, [localStream, remoteStream, role]);
+    }, [mainStream]);
     
     const [newMessage, setNewMessage] = useState('');
 
@@ -68,15 +131,12 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                                 ref={videoRef} 
                                 autoPlay 
                                 playsInline 
-                                muted={role === 'admin'} // Mute self
+                                muted={mainStream === localStream} // Mute self
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                onLoadedMetadata={() => console.log('Video metadata loaded')}
-                                onPlay={() => console.log('Video started playing')}
-                                onError={(e) => console.error('Video error:', e)}
                             />
-                            {!isConnected && role === 'student' && (
+                            {!mainStream && (
                                 <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                                    <Typography>Connecting to stream...</Typography>
+                                    <Typography>Waiting for others to join...</Typography>
                                 </Box>
                             )}
                         </Box>
@@ -84,13 +144,11 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                         <Box sx={{ textAlign: 'center' }}>
                             <Videocam sx={{ fontSize: 64, color: '#333', mb: 2 }} />
                             <Typography variant="h6" color="text.secondary">
-                                {role === 'admin' ? 'Ready to Stream?' : 'Waiting for stream...'}
+                                Ready to join the session?
                             </Typography>
-                            {role === 'admin' && (
-                                <Button variant="contained" color="error" startIcon={<Videocam />} onClick={() => setIsLive(true)} sx={{ mt: 2 }}>
-                                    Go Live
-                                </Button>
-                            )}
+                            <Button variant="contained" color="error" startIcon={<Videocam />} onClick={() => setIsLive(true)} sx={{ mt: 2 }}>
+                                Join with Video
+                            </Button>
                         </Box>
                      )}
                 </Box>
@@ -100,18 +158,29 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                     <Chip label="LIVE" color="error" size="small" sx={{ position: 'absolute', top: 16, left: 16, borderRadius: 1 }} />
                 )}
                 
-                {/* Viewer Count */}
+                {/* Viewer Count & More Streams */}
                  {isLive && (
-                    <Chip label={`👁 ${connectedCount} `} sx={{ position: 'absolute', top: 16, right: 16, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: 1 }} />
+                    <Box sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                        <Chip label={`👥 ${connectedCount} `} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: 1 }} />
+                        <Button 
+                            variant="contained" 
+                            size="small" 
+                            startIcon={<GridView />} 
+                            onClick={() => setShowGrid(true)}
+                            sx={{ bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' } }}
+                        >
+                            Grid View
+                        </Button>
+                    </Box>
                 )}
             </Box>
 
-            {/* Controls (Admin only) */}
-            {role === 'admin' && isLive && (
+            {/* Controls */}
+            {isLive && (
                 <Box sx={{ p: 2, bgcolor: '#111', display: 'flex', justifyContent: 'center', gap: 2 }}>
                     <Button variant="outlined" color="inherit" startIcon={<Mic />}>Mute</Button>
                     <Button variant="outlined" color="inherit" startIcon={<VideocamOff />}>Stop Video</Button>
-                    <Button variant="contained" color="error" onClick={() => setIsLive(false)}>End Stream</Button>
+                    <Button variant="contained" color="error" onClick={() => setIsLive(false)}>Leave</Button>
                 </Box>
             )}
 
@@ -151,6 +220,138 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                 </Box>
             </Box>
             </Box>
+
+            {/* Full Screen Grid Dialog */}
+            <Dialog
+                fullScreen
+                open={showGrid}
+                onClose={() => setShowGrid(false)}
+                TransitionComponent={Transition}
+                PaperProps={{
+                    sx: { bgcolor: '#1a1a1a', color: 'white' }
+                }}
+            >
+                <AppBar sx={{ position: 'relative', bgcolor: '#111' }}>
+                    <Toolbar>
+                        <IconButton edge="start" color="inherit" onClick={() => setShowGrid(false)} aria-label="close">
+                            <Close />
+                        </IconButton>
+                        <Typography sx={{ ml: 2, flex: 1 }} variant="h6" component="div">
+                            Connected Streams ({Object.keys(remoteStreams).length + (localStream ? 1 : 0)})
+                        </Typography>
+                        <Button autoFocus color="inherit" onClick={() => setShowGrid(false)}>
+                            Done
+                        </Button>
+                    </Toolbar>
+                </AppBar>
+                <Box sx={{ p: 2, overflowY: 'auto', flex: 1 }}>
+                    <Typography variant="caption" sx={{ display: 'block', mb: 2, color: '#aaa', textAlign: 'center' }}>
+                        Tap to Pin • Hold to Preview
+                    </Typography>
+                    <Grid container spacing={2}>
+                        {/* Local Stream */}
+                        {localStream && (
+                            <Grid item xs={6} sm={4} md={3}>
+                                <Box 
+                                    onMouseDown={() => handleStart(localStream)}
+                                    onMouseUp={handleEnd}
+                                    onMouseLeave={handleEnd}
+                                    onTouchStart={() => handleStart(localStream)}
+                                    onTouchEnd={handleEnd}
+                                    onClick={() => handleClick(null)}
+                                    sx={{ 
+                                        position: 'relative', 
+                                        paddingTop: '75%', // 4:3 aspect ratio
+                                        bgcolor: 'black', 
+                                        borderRadius: 2, 
+                                        overflow: 'hidden',
+                                        cursor: 'pointer',
+                                        border: !pinnedStreamId ? '3px solid #ff0055' : '1px solid #333',
+                                        transition: 'transform 0.2s',
+                                        '&:active': { transform: 'scale(0.95)' }
+                                    }}
+                                >
+                                    <video 
+                                        autoPlay 
+                                        playsInline 
+                                        muted 
+                                        ref={ref => { if (ref) ref.srcObject = localStream }}
+                                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} 
+                                    />
+                                    <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+                                        <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>You</Typography>
+                                    </Box>
+                                    {!pinnedStreamId && <PushPin sx={{ position: 'absolute', top: 8, right: 8, color: '#ff0055', fontSize: 20 }} />}
+                                </Box>
+                            </Grid>
+                        )}
+
+                        {/* Remote Streams */}
+                        {Object.entries(remoteStreams).map(([peerId, stream]) => (
+                            <Grid item xs={6} sm={4} md={3} key={peerId}>
+                                <Box 
+                                    onMouseDown={() => handleStart(stream)}
+                                    onMouseUp={handleEnd}
+                                    onMouseLeave={handleEnd}
+                                    onTouchStart={() => handleStart(stream)}
+                                    onTouchEnd={handleEnd}
+                                    onClick={() => handleClick(peerId)}
+                                    sx={{ 
+                                        position: 'relative', 
+                                        paddingTop: '75%', 
+                                        bgcolor: 'black', 
+                                        borderRadius: 2, 
+                                        overflow: 'hidden',
+                                        cursor: 'pointer',
+                                        border: pinnedStreamId === peerId ? '3px solid #ff0055' : '1px solid #333',
+                                        transition: 'transform 0.2s',
+                                        '&:active': { transform: 'scale(0.95)' }
+                                    }}
+                                >
+                                    <video 
+                                        autoPlay 
+                                        playsInline 
+                                        ref={ref => { if (ref) ref.srcObject = stream }}
+                                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} 
+                                    />
+                                    <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
+                                        <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>User {peerId.slice(0, 4)}</Typography>
+                                    </Box>
+                                    {pinnedStreamId === peerId && <PushPin sx={{ position: 'absolute', top: 8, right: 8, color: '#ff0055', fontSize: 20 }} />}
+                                </Box>
+                            </Grid>
+                        ))}
+                    </Grid>
+                </Box>
+
+                {/* Preview Overlay */}
+                {previewStream && (
+                    <Box sx={{ 
+                        position: 'fixed', 
+                        top: 0, left: 0, right: 0, bottom: 0, 
+                        bgcolor: 'rgba(0,0,0,0.9)', 
+                        zIndex: 9999,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        pointerEvents: 'none' // Let touch events pass through to underlying element to detect release? 
+                        // Actually, if we cover it, onMouseUp might not fire on the original element.
+                        // But we need to see it.
+                    }}>
+                        <Box sx={{ width: '90%', height: '80%', position: 'relative' }}>
+                             <video 
+                                autoPlay 
+                                playsInline 
+                                ref={ref => { if (ref) ref.srcObject = previewStream }}
+                                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                            />
+                            <Typography sx={{ position: 'absolute', bottom: -40, left: 0, right: 0, textAlign: 'center', color: 'white' }}>
+                                Release to close
+                            </Typography>
+                        </Box>
+                    </Box>
+                )}
+            </Dialog>
         </Container>
     )
 }

@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useTransition } from 'react'
 import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider } from '@mui/material'
 import { LiveTv, VideoLibrary, AddCircle, Logout, ManageAccounts, Notifications, Person, Menu as MenuIcon } from '@mui/icons-material'
 import { LiveSession } from '@/modules/live-class/components/LiveSession'
@@ -19,6 +19,7 @@ const AdminPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentSessionId, setCurrentSessionId] = useState('public-stream');
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [isPending, startTransition] = useTransition();
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -108,8 +109,10 @@ const AdminPage = () => {
   };
 
   const handleLogout = async () => {
+    startTransition(async() => {
       await supabase.auth.signOut();
       router.push('/login');
+    });
   };
 
   if (loading) {
@@ -179,7 +182,7 @@ const AdminPage = () => {
                 onClick={handleLogout}
                 sx={{ color: 'var(--text-secondary)', ml: 1 }}
               >
-                <Logout fontSize="small" />
+               {isPending ? <CircularProgress size={20} /> : <Logout fontSize="small" />}
               </IconButton>
           </Box>
       </Box>
@@ -227,7 +230,9 @@ const AdminPage = () => {
             <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
             <ListItem disablePadding>
                 <ListItemButton onClick={handleLogout}>
-                    <ListItemIcon sx={{ color: '#888' }}><Logout /></ListItemIcon>
+                    <ListItemIcon sx={{ color: '#888' }}>
+                      {isPending ? <CircularProgress size={20} /> : <Logout fontSize="small" />}
+                    </ListItemIcon>
                     <ListItemText primary="Logout" />
                 </ListItemButton>
             </ListItem>

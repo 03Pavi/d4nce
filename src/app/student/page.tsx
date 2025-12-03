@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useTransition } from 'react'
 import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Badge } from '@mui/material'
 import { LiveTv, VideoLibrary, AddCircle, Logout, LibraryBooks, Notifications, Person } from '@mui/icons-material'
 import { LiveSession } from '@/modules/live-class/components/LiveSession'
@@ -10,6 +10,7 @@ import { StudentClassesView } from '@/modules/classes/components/StudentClassesV
 import { ProfileView } from '@/modules/profile/components/ProfileView'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 const StudentPage = () => {
   const [value, setValue] = useState(0);
@@ -17,6 +18,7 @@ const StudentPage = () => {
   const [feedKey, setFeedKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [currentSessionId, setCurrentSessionId] = useState('public-stream');
+  const [isPending, startTransition] = useTransition()
   const [userProfile, setUserProfile] = useState<any>(null);
   
   const router = useRouter();
@@ -100,8 +102,10 @@ const StudentPage = () => {
   };
 
   const handleLogout = async () => {
+    startTransition(async() => {
       await supabase.auth.signOut();
       router.push('/login');
+    });
   };
 
   if (loading) {
@@ -165,7 +169,7 @@ const StudentPage = () => {
                 onClick={handleLogout}
                 sx={{ color: 'var(--text-secondary)', ml: 1 }}
               >
-                <Logout fontSize="small" />
+               {isPending ? <CircularProgress size={20} /> : <Logout fontSize="small" />}
               </IconButton>
           </Box>
       </Box>
