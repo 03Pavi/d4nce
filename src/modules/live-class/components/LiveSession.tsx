@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Box, Button, Typography, TextField, Chip, Container, Grid, IconButton, Dialog, AppBar, Toolbar, Slide } from '@mui/material'
 import { TransitionProps } from '@mui/material/transitions';
-import { Send, Videocam, Mic, VideocamOff, GridView, Close, PushPin } from '@mui/icons-material'
+import { Send, Videocam, Mic, VideocamOff, GridView, Close, PushPin, ChatBubble, MicOff } from '@mui/icons-material'
 import { useLiveStream } from '../hooks/useLiveStream'
 import { createClient } from '@/lib/supabase/client'
 
@@ -23,8 +23,6 @@ const Transition = React.forwardRef(function Transition(
 
 export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessionId = 'class-1' }: LiveSessionProps) => {
     const [userName, setUserName] = useState<string>(role === 'admin' ? 'Instructor' : 'Student');
-    // Auto-join for admin, manual for student? Or manual for both?
-    // Let's make it manual for everyone to "Join Session"
     const [isLive, setIsLive] = useState(false); 
     
     // Fetch user profile for name
@@ -48,6 +46,28 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
     const [showGrid, setShowGrid] = useState(false);
     const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
 
+    const [showChat, setShowChat] = useState(true);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isVideoStopped, setIsVideoStopped] = useState(false);
+
+    const toggleMute = () => {
+        if (localStream) {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !track.enabled;
+            });
+            setIsMuted(!isMuted);
+        }
+    };
+
+    const toggleVideo = () => {
+        if (localStream) {
+            localStream.getVideoTracks().forEach(track => {
+                track.enabled = !track.enabled;
+            });
+            setIsVideoStopped(!isVideoStopped);
+        }
+    };
+
     // Long press logic
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const isLongPress = useRef(false);
@@ -70,19 +90,19 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
 
     const handleClick = (peerId: string | null) => {
         if (!isLongPress.current) {
-            setPinnedStreamId(peerId);
+            // Toggle pin state: if clicking the already pinned stream, unpin it (set to null)
+            // Otherwise, pin the new stream
+            setPinnedStreamId(prev => prev === peerId ? null : peerId);
             setShowGrid(false);
         }
     };
 
     // Determine which stream to show in main view
-    // Default: If pinned, show pinned.
-    // Else if admin is present (and I am student), show admin? 
-    // But we don't know which one is admin easily without metadata.
-    // For now, default to the first remote stream if available, else local.
-    const mainStream = pinnedStreamId && remoteStreams[pinnedStreamId] 
-        ? remoteStreams[pinnedStreamId] 
-        : (Object.values(remoteStreams)[0] || localStream);
+    const mainStream = pinnedStreamId === 'local' 
+        ? localStream 
+        : (pinnedStreamId && remoteStreams[pinnedStreamId] 
+            ? remoteStreams[pinnedStreamId] 
+            : (Object.values(remoteStreams)[0] || localStream));
 
     useEffect(() => {
         if (videoRef.current && mainStream) {
@@ -115,7 +135,16 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
         <Container maxWidth="lg" disableGutters sx={{ height: '100%' }}>
             <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'black', position: 'relative' }}>
             {/* Video Area */}
-            <Box sx={{ flex: 1, bgcolor: '#222', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', overflow: 'hidden' }}>
+            <Box sx={{ 
+                flex: showChat ? '0 0 calc(100% - 300px)' : 1, // Dynamic height
+                bgcolor: '#222', 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                position: 'relative', 
+                overflow: 'hidden',
+                transition: 'all 0.3s ease'
+            }}>
                 {/* Mock Video Feed */}
                 <Box sx={{ 
                     width: '100%', 
@@ -158,36 +187,59 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                     <Chip label="LIVE" color="error" size="small" sx={{ position: 'absolute', top: 16, left: 16, borderRadius: 1 }} />
                 )}
                 
-                {/* Viewer Count & More Streams */}
+                {/* Viewer Count & Controls Overlay */}
                  {isLive && (
                     <Box sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
                         <Chip label={`👥 ${connectedCount} `} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: 1 }} />
-                        <Button 
-                            variant="contained" 
+                        <IconButton 
                             size="small" 
-                            startIcon={<GridView />} 
                             onClick={() => setShowGrid(true)}
-                            sx={{ bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' } }}
+                            sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' } }}
                         >
-                            Grid View
+                            <GridView />
+                        </IconButton>
+                        <IconButton 
+                            size="small" 
+                            onClick={() => setShowChat(!showChat)}
+                            sx={{ bgcolor: showChat ? '#ff0055' : 'rgba(0,0,0,0.5)', color: 'white', '&:hover': { bgcolor: showChat ? '#cc0044' : 'rgba(0,0,0,0.7)' } }}
+                        >
+                            <ChatBubble />
+                        </IconButton>
+                    </Box>
+                )}
+
+                {/* Bottom Controls Overlay (Visible when hovering or always?) Let's put it at bottom center of video */}
+                {isLive && (
+                    <Box sx={{ 
+                        position: 'absolute', 
+                        bottom: 16, 
+                        left: '50%', 
+                        transform: 'translateX(-50%)', 
+                        display: 'flex', 
+                        gap: 2,
+                        bgcolor: 'rgba(0,0,0,0.6)',
+                        borderRadius: 4,
+                        p: 1
+                    }}>
+                        <IconButton onClick={toggleMute} sx={{ color: isMuted ? '#ff0055' : 'white', border: '1px solid rgba(255,255,255,0.3)' }}>
+                            {isMuted ? <MicOff /> : <Mic />}
+                        </IconButton>
+                        <IconButton onClick={toggleVideo} sx={{ color: isVideoStopped ? '#ff0055' : 'white', border: '1px solid rgba(255,255,255,0.3)' }}>
+                            {isVideoStopped ? <VideocamOff /> : <Videocam />}
+                        </IconButton>
+                        <Button variant="contained" color="error" size="small" onClick={() => setIsLive(false)} sx={{ borderRadius: 4 }}>
+                            Leave
                         </Button>
                     </Box>
                 )}
             </Box>
 
-            {/* Controls */}
-            {isLive && (
-                <Box sx={{ p: 2, bgcolor: '#111', display: 'flex', justifyContent: 'center', gap: 2 }}>
-                    <Button variant="outlined" color="inherit" startIcon={<Mic />}>Mute</Button>
-                    <Button variant="outlined" color="inherit" startIcon={<VideocamOff />}>Stop Video</Button>
-                    <Button variant="contained" color="error" onClick={() => setIsLive(false)}>Leave</Button>
-                </Box>
-            )}
-
-            {/* Chat Overlay */}
-            <Box sx={{ height: '300px', bgcolor: '#111', display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ p: 2, borderBottom: '1px solid #333' }}>
+            {/* Chat Overlay (Conditional) */}
+            {showChat && (
+            <Box sx={{ height: '300px', bgcolor: '#111', display: 'flex', flexDirection: 'column', borderTop: '1px solid #333' }}>
+                <Box sx={{ p: 2, borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="subtitle2" sx={{ color: 'white' }}>Live Chat</Typography>
+                    <IconButton size="small" onClick={() => setShowChat(false)} sx={{ color: '#aaa' }}><Close fontSize="small" /></IconButton>
                 </Box>
                 <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
                     {chatMessages.map((msg, i) => (
@@ -219,6 +271,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                     </Button>
                 </Box>
             </Box>
+            )}
             </Box>
 
             {/* Full Screen Grid Dialog */}
@@ -258,7 +311,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                                     onMouseLeave={handleEnd}
                                     onTouchStart={() => handleStart(localStream)}
                                     onTouchEnd={handleEnd}
-                                    onClick={() => handleClick(null)}
+                                    onClick={() => handleClick('local')}
                                     sx={{ 
                                         position: 'relative', 
                                         paddingTop: '75%', // 4:3 aspect ratio
@@ -266,7 +319,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                                         borderRadius: 2, 
                                         overflow: 'hidden',
                                         cursor: 'pointer',
-                                        border: !pinnedStreamId ? '3px solid #ff0055' : '1px solid #333',
+                                        border: pinnedStreamId === 'local' ? '3px solid #ff0055' : '1px solid #333',
                                         transition: 'transform 0.2s',
                                         '&:active': { transform: 'scale(0.95)' }
                                     }}
@@ -281,7 +334,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                                     <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
                                         <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>You</Typography>
                                     </Box>
-                                    {!pinnedStreamId && <PushPin sx={{ position: 'absolute', top: 8, right: 8, color: '#ff0055', fontSize: 20 }} />}
+                                    {pinnedStreamId === 'local' && <PushPin sx={{ position: 'absolute', top: 8, right: 8, color: '#ff0055', fontSize: 20 }} />}
                                 </Box>
                             </Grid>
                         )}
