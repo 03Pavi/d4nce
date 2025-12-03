@@ -60,11 +60,27 @@ export const ClassesManagement = () => {
     fetchClasses
   } = useClassesManagement()
 
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
+
+  const handleDeleteClick = (id: string) => {
+      setDeleteId(id);
+      setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+      if (!deleteId) return;
+      await handleDeleteClass(deleteId);
+      setConfirmOpen(false);
+      setDeleteId(null);
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <PullToRefresh 
         onRefresh={async () => await fetchClasses()} 
         style={{ minHeight: '100vh' }}
+        loading={<Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} color="secondary" /></Box>}
       >
       <Box sx={{ 
         minHeight: '100vh',
@@ -145,7 +161,7 @@ export const ClassesManagement = () => {
                     index={index}
                     onEdit={handleOpenEditDialog}
                     onEnroll={handleOpenEnrollDialog}
-                    onDelete={handleDeleteClass}
+                    onDelete={handleDeleteClick}
                     onJoin={handleJoinClass}
                   />
                 ))}
@@ -198,6 +214,13 @@ export const ClassesManagement = () => {
             {snackbar.message}
           </Alert>
         </Snackbar>
+        <ConfirmDialog 
+            open={confirmOpen} 
+            title="Delete Class" 
+            message="Are you sure you want to delete this class? This action cannot be undone." 
+            onConfirm={handleConfirmDelete} 
+            onCancel={() => setConfirmOpen(false)} 
+        />
       </Box>
       </PullToRefresh>
     </LocalizationProvider>
