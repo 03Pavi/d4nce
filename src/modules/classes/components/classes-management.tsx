@@ -25,7 +25,6 @@ import { EditClassDialog } from './edit-class-dialog'
 import { EnrollStudentsDialog } from './enroll-students-dialog'
 import { useClassesManagement } from './use-classes-management'
 import { ClassCard } from './class-card'
-import PullToRefresh from 'react-pull-to-refresh';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 
 export const ClassesManagement = () => {
@@ -57,7 +56,8 @@ export const ClassesManagement = () => {
     handleJoinClass,
     toggleStudentSelection,
     getAvailableStudents,
-    fetchClasses
+    fetchClasses,
+    isLoading
   } = useClassesManagement()
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -77,19 +77,16 @@ export const ClassesManagement = () => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <PullToRefresh 
-        onRefresh={async () => await fetchClasses()} 
-        style={{ minHeight: '100vh' }}
-      >
       <Box sx={{ 
-        minHeight: '100vh',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
         background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)',
-        py: { xs: 2, md: 4 }
       }}>
-        <Container maxWidth="lg">
-          <Box sx={{ color: 'white' }}>
-            {/* Header */}
-            <Box sx={{ mb: 4 }}>
+        {/* Fixed Header Section */}
+        <Box sx={{ pt: { xs: 2, md: 4 }, pb: 2, px: 2, bgcolor: 'transparent', zIndex: 10 }}>
+          <Container maxWidth="lg">
+            <Box sx={{ color: 'white' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box>
                   <Typography variant="h5" fontWeight="bold" sx={{ mb: 0.5 }}>
@@ -118,56 +115,65 @@ export const ClassesManagement = () => {
                 </Button>
               </Box>
             </Box>
+          </Container>
+        </Box>
 
-            {/* Classes List */}
-            {classes.length === 0 ? (
-              <Fade in={true}>
-                <Card sx={{ 
-                  bgcolor: 'rgba(255,255,255,0.03)', 
-                  border: '1px dashed rgba(255,255,255,0.1)',
-                  textAlign: 'center',
-                  py: 8
-                }}>
-                  <CardContent>
-                    <School sx={{ fontSize: 64, color: '#333', mb: 2 }} />
-                    <Typography variant="h6" sx={{ color: '#666', mb: 1 }}>
-                      No Classes Yet
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#444', mb: 3 }}>
-                      Create your first class to get started
-                    </Typography>
-                    <Button 
-                      variant="outlined" 
-                      startIcon={<Add />}
-                      onClick={() => setCreateDialogOpen(true)}
-                      sx={{ 
-                        color: '#ff0055', 
-                        borderColor: '#ff0055',
-                        '&:hover': { borderColor: '#cc0044', bgcolor: 'rgba(255,0,85,0.1)' }
-                      }}
-                    >
-                      Create Class
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Fade>
-            ) : (
-              <Grid container spacing={3}>
-                {classes.map((cls, index) => (
-                  <ClassCard
-                    key={cls.id}
-                    cls={cls}
-                    index={index}
-                    onEdit={handleOpenEditDialog}
-                    onEnroll={handleOpenEnrollDialog}
-                    onDelete={handleDeleteClick}
-                    onJoin={handleJoinClass}
-                  />
-                ))}
-              </Grid>
-            )}
-          </Box>
-        </Container>
+        {/* Scrollable List Section */}
+        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            <Container maxWidth="lg" sx={{ pb: 4 }}>
+              <Box sx={{ color: 'white' }}>
+                {/* Classes List */}
+                {isLoading? <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }} >
+                  <CircularProgress color='secondary'/>
+                  </Box>: classes.length === 0 ? (
+                  <Fade in={true}>
+                    <Card sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.03)', 
+                      border: '1px dashed rgba(255,255,255,0.1)',
+                      textAlign: 'center',
+                      py: 8
+                    }}>
+                      <CardContent>
+                        <School sx={{ fontSize: 64, color: '#333', mb: 2 }} />
+                        <Typography variant="h6" sx={{ color: '#666', mb: 1 }}>
+                          No Classes Yet
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#444', mb: 3 }}>
+                          Create your first class to get started
+                        </Typography>
+                        <Button 
+                          variant="outlined" 
+                          startIcon={<Add />}
+                          onClick={() => setCreateDialogOpen(true)}
+                          sx={{ 
+                            color: '#ff0055', 
+                            borderColor: '#ff0055',
+                            '&:hover': { borderColor: '#cc0044', bgcolor: 'rgba(255,0,85,0.1)' }
+                          }}
+                        >
+                          Create Class
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Fade>
+                ) : (
+                  <Grid container spacing={3}>
+                    {classes.map((cls, index) => (
+                      <ClassCard
+                        key={cls.id}
+                        cls={cls}
+                        index={index}
+                        onEdit={handleOpenEditDialog}
+                        onEnroll={handleOpenEnrollDialog}
+                        onDelete={handleDeleteClick}
+                        onJoin={handleJoinClass}
+                      />
+                    ))}
+                  </Grid>
+                )}
+              </Box>
+            </Container>
+        </Box>
 
         <CreateClassDialog
             open={createDialogOpen}
@@ -221,7 +227,6 @@ export const ClassesManagement = () => {
             onCancel={() => setConfirmOpen(false)} 
         />
       </Box>
-      </PullToRefresh>
     </LocalizationProvider>
   )
 }

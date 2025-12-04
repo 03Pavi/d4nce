@@ -8,7 +8,6 @@ import dayjs, { Dayjs } from 'dayjs';
 import { createClient } from '@/lib/supabase/client';
 import { AddReminderDialog } from './add-reminder-dialog';
 import { PushNotificationDialog } from './push-notification-dialog';
-import PullToRefresh from 'react-pull-to-refresh';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 
 interface Reminder {
@@ -128,6 +127,7 @@ export const ReminderList = ({ role }: ReminderListProps) => {
         } else {
             setOpen(false);
             setSnackbar({ open: true, message: 'Reminder added successfully!', severity: 'success' });
+            fetchReminders();
         }
     }
 
@@ -147,6 +147,7 @@ export const ReminderList = ({ role }: ReminderListProps) => {
              setSnackbar({ open: true, message: 'Failed to delete reminder', severity: 'error' });
         } else {
             setSnackbar({ open: true, message: 'Reminder deleted', severity: 'info' });
+            fetchReminders();
         }
         setConfirmOpen(false);
         setDeleteId(null);
@@ -173,19 +174,16 @@ export const ReminderList = ({ role }: ReminderListProps) => {
 
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <PullToRefresh 
-                onRefresh={handleRefresh} 
-                style={{ minHeight: '100vh' }}
-            >
-                <Box sx={{ 
-                    minHeight: '100vh',
-                    background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)',
-                    py: { xs: 2, md: 4 }
-                }}>
+            <Box sx={{ 
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)',
+            }}>
+                {/* Fixed Header Section */}
+                <Box sx={{ pt: { xs: 2, md: 4 }, pb: 2, px: 2, bgcolor: 'transparent', zIndex: 10 }}>
                     <Container maxWidth="lg">
-                    <Box sx={{ color: 'white' }}>
-                        {/* Header Section */}
-                        <Box sx={{ mb: 4 }}>
+                        <Box sx={{ color: 'white' }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -253,121 +251,126 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                 </Box>
                             )}
                         </Box>
+                    </Container>
+                </Box>
 
-                        {/* Reminders List */}
-                        {loading ? (
-                             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress color="secondary" /></Box>
-                        ) : reminders.length === 0 ? (
-                            <Fade in={true}>
-                                <Card sx={{ 
-                                    bgcolor: 'rgba(255,255,255,0.03)', 
-                                    border: '1px dashed rgba(255,255,255,0.1)',
-                                    textAlign: 'center',
-                                    py: 8
-                                }}>
-                                    <CardContent>
-                                        <Alarm sx={{ fontSize: 64, color: '#333', mb: 2 }} />
-                                        <Typography variant="h6" sx={{ color: '#666', mb: 1 }}>
-                                            No Reminders Yet
-                                        </Typography>
-                                        {role === 'admin' && (
-                                            <Button 
-                                                variant="outlined" 
-                                                startIcon={<Add />}
-                                                onClick={() => setOpen(true)}
-                                                sx={{ 
-                                                    mt: 2,
-                                                    color: '#ff0055', 
-                                                    borderColor: '#ff0055',
-                                                    '&:hover': { borderColor: '#cc0044', bgcolor: 'rgba(255,0,85,0.1)' }
-                                                }}
-                                            >
-                                                Add Reminder
-                                            </Button>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </Fade>
-                        ) : (
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {reminders.map((reminder, index) => (
-                                    <Fade in={true} key={reminder.id} timeout={300 + index * 100}>
-                                        <Card sx={{ 
-                                            bgcolor: 'rgba(255,255,255,0.03)', 
-                                            border: '1px solid rgba(255,255,255,0.1)',
-                                            borderLeft: '4px solid #00e5ff',
-                                            transition: 'all 0.3s ease',
-                                            '&:hover': {
-                                                bgcolor: 'rgba(255,255,255,0.05)',
-                                                transform: 'translateY(-2px)',
-                                                boxShadow: '0 8px 24px rgba(0,229,255,0.15)'
-                                            }
-                                        }}>
-                                            <CardContent sx={{ p: 2.5 }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                                                    <Box sx={{ 
-                                                        bgcolor: 'rgba(0,229,255,0.15)', 
-                                                        borderRadius: 2, 
-                                                        p: 1.5,
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center'
-                                                    }}>
-                                                        <Alarm sx={{ color: '#00e5ff', fontSize: 28 }} />
-                                                    </Box>
-
-                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5, color: 'white' }}>
-                                                            {reminder.title}
-                                                        </Typography>
-                                                        
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                                <AccessTime sx={{ fontSize: 18, color: '#888' }} />
-                                                                <Typography variant="body2" sx={{ color: '#aaa' }}>
-                                                                    {dayjs(reminder.scheduled_time).format('MMM D, YYYY h:mm A')}
-                                                                </Typography>
-                                                            </Box>
-                                                            
-                                                            {reminder.for_group && (
-                                                                <Chip 
-                                                                    icon={<Group sx={{ fontSize: 16 }} />}
-                                                                    label={reminder.for_group}
-                                                                    size="small"
-                                                                    sx={{ 
-                                                                        bgcolor: 'rgba(255,0,85,0.15)',
-                                                                        color: '#ff0055',
-                                                                        border: '1px solid rgba(255,0,85,0.3)',
-                                                                        height: 24
-                                                                    }}
-                                                                />
-                                                            )}
+                {/* Scrollable List Section */}
+                <Box sx={{ flex: 1, overflowY: 'auto' }}>
+                        <Container maxWidth="lg" sx={{ pb: 4 }}>
+                            {/* Reminders List */}
+                            {loading ? (
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress color="secondary" /></Box>
+                            ) : reminders.length === 0 ? (
+                                <Fade in={true}>
+                                    <Card sx={{ 
+                                        bgcolor: 'rgba(255,255,255,0.03)', 
+                                        border: '1px dashed rgba(255,255,255,0.1)',
+                                        textAlign: 'center',
+                                        py: 8
+                                    }}>
+                                        <CardContent>
+                                            <Alarm sx={{ fontSize: 64, color: '#333', mb: 2 }} />
+                                            <Typography variant="h6" sx={{ color: '#666', mb: 1 }}>
+                                                No Reminders Yet
+                                            </Typography>
+                                            {role === 'admin' && (
+                                                <Button 
+                                                    variant="outlined" 
+                                                    startIcon={<Add />}
+                                                    onClick={() => setOpen(true)}
+                                                    sx={{ 
+                                                        mt: 2,
+                                                        color: '#ff0055', 
+                                                        borderColor: '#ff0055',
+                                                        '&:hover': { borderColor: '#cc0044', bgcolor: 'rgba(255,0,85,0.1)' }
+                                                    }}
+                                                >
+                                                    Add Reminder
+                                                </Button>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </Fade>
+                            ) : (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    {reminders.map((reminder, index) => (
+                                        <Fade in={true} key={reminder.id} timeout={300 + index * 100}>
+                                            <Card sx={{ 
+                                                bgcolor: 'rgba(255,255,255,0.03)', 
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderLeft: '4px solid #00e5ff',
+                                                transition: 'all 0.3s ease',
+                                                '&:hover': {
+                                                    bgcolor: 'rgba(255,255,255,0.05)',
+                                                    transform: 'translateY(-2px)',
+                                                    boxShadow: '0 8px 24px rgba(0,229,255,0.15)'
+                                                }
+                                            }}>
+                                                <CardContent sx={{ p: 2.5 }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                                        <Box sx={{ 
+                                                            bgcolor: 'rgba(0,229,255,0.15)', 
+                                                            borderRadius: 2, 
+                                                            p: 1.5,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}>
+                                                            <Alarm sx={{ color: '#00e5ff', fontSize: 28 }} />
                                                         </Box>
-                                                    </Box>
 
-                                                    {role === 'admin' && (
-                                                        <IconButton 
-                                                            onClick={() => handleDeleteClick(reminder.id)} 
-                                                            sx={{ 
-                                                                color: '#666',
-                                                                '&:hover': { 
-                                                                    color: '#ff0055',
-                                                                    bgcolor: 'rgba(255,0,85,0.1)'
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Delete />
-                                                        </IconButton>
-                                                    )}
-                                                </Box>
-                                            </CardContent>
-                                        </Card>
-                                    </Fade>
-                                ))}
-                            </Box>
-                        )}
-                    </Box>
-                </Container>
+                                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                            <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5, color: 'white' }}>
+                                                                {reminder.title}
+                                                            </Typography>
+                                                            
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                                    <AccessTime sx={{ fontSize: 18, color: '#888' }} />
+                                                                    <Typography variant="body2" sx={{ color: '#aaa' }}>
+                                                                        {dayjs(reminder.scheduled_time).format('MMM D, YYYY h:mm A')}
+                                                                    </Typography>
+                                                                </Box>
+                                                                
+                                                                {reminder.for_group && (
+                                                                    <Chip 
+                                                                        icon={<Group sx={{ fontSize: 16 }} />}
+                                                                        label={reminder.for_group}
+                                                                        size="small"
+                                                                        sx={{ 
+                                                                            bgcolor: 'rgba(255,0,85,0.15)',
+                                                                            color: '#ff0055',
+                                                                            border: '1px solid rgba(255,0,85,0.3)',
+                                                                            height: 24
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                            </Box>
+                                                        </Box>
+
+                                                        {role === 'admin' && (
+                                                            <IconButton 
+                                                                onClick={() => handleDeleteClick(reminder.id)} 
+                                                                sx={{ 
+                                                                    color: '#666',
+                                                                    '&:hover': { 
+                                                                        color: '#ff0055',
+                                                                        bgcolor: 'rgba(255,0,85,0.1)'
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Delete />
+                                                            </IconButton>
+                                                        )}
+                                                    </Box>
+                                                </CardContent>
+                                            </Card>
+                                        </Fade>
+                                    ))}
+                                </Box>
+                            )}
+                        </Container>
+                </Box>
 
                 <AddReminderDialog 
                     open={open} 
@@ -404,7 +407,6 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                     onCancel={() => setConfirmOpen(false)} 
                 />
             </Box>
-            </PullToRefresh>
         </LocalizationProvider>
     )
 }

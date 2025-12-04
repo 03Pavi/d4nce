@@ -38,6 +38,9 @@ a {
   color: inherit;
   text-decoration: none;
 }
+::-webkit-scrollbar {
+  display: none;
+}
 
 /* Scrollbar hiding for reels feel */
 .no-scrollbar::-webkit-scrollbar {

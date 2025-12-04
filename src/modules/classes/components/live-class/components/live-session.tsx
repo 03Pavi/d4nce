@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Box, Button, Typography, Container, IconButton, Chip } from '@mui/material'
-import { Videocam, Mic, VideocamOff, GridView, ChatBubble, MicOff } from '@mui/icons-material'
+import { Videocam, Mic, VideocamOff, GridView, ChatBubble, MicOff, RadioButtonChecked, StopCircle } from '@mui/icons-material'
 import { useLiveStream } from '../hooks/use-live-stream'
 import { createClient } from '@/lib/supabase/client'
 import { LiveSessionChat } from './live-session-chat'
 import { LiveSessionGrid } from './live-session-grid'
+import { SaveRecordingDialog } from './save-recording-dialog'
 
 interface LiveSessionProps {
     role: 'admin' | 'student';
@@ -18,6 +19,16 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
     const [userName, setUserName] = useState<string>(role === 'admin' ? 'Instructor' : 'Student');
     const [isLive, setIsLive] = useState(false); 
     
+    // Recording State
+    const [isRecording, setIsRecording] = useState(false);
+    const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const recordedChunksRef = useRef<Blob[]>([]);
+
+    // Recording Timer
+    const [recordingTime, setRecordingTime] = useState(0);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+
     // Fetch user profile for name
     useEffect(() => {
         const fetchProfile = async () => {
@@ -61,6 +72,43 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
         }
     }, [localStream, isVideoStopped]);
 
+    // Timer Logic
+    useEffect(() => {
+        if (isRecording) {
+            timerRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+        } else {
+            if (timerRef.current) clearInterval(timerRef.current);
+            setRecordingTime(0);
+        }
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [isRecording]);
+
+    // Auto-save on unmount or leave if recording
+    useEffect(() => {
+        return () => {
+            if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                mediaRecorderRef.current.stop();
+            }
+        };
+    }, [isRecording]);
+
+    // Handle browser refresh/close
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isRecording) {
+                e.preventDefault();
+                e.returnValue = ''; 
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isRecording]);
+
     // Determine which stream to show in main view
     const mainStream = pinnedStreamId === 'local' 
         ? localStream 
@@ -78,6 +126,68 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
     const handleSendMessage = (text: string) => {
         sendChatMessage(text);
     }
+
+    const startRecording = () => {
+        if (videoRef.current) {
+            const stream = (videoRef.current as any).captureStream ? (videoRef.current as any).captureStream() : (videoRef.current as any).mozCaptureStream ? (videoRef.current as any).mozCaptureStream() : null;
+            
+            if (stream) {
+                const mediaRecorder = new MediaRecorder(stream);
+                mediaRecorderRef.current = mediaRecorder;
+                recordedChunksRef.current = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunksRef.current.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    setSaveDialogOpen(true);
+                };
+
+                mediaRecorder.start();
+                setIsRecording(true);
+            } else {
+                console.error('Stream capture not supported in this browser.');
+                alert('Recording is not supported in this browser.');
+            }
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+        }
+    };
+
+    const handleSaveRecording = (fileName: string) => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        document.body.appendChild(a);
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `${fileName}.webm`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        setSaveDialogOpen(false);
+    };
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const handleLeave = () => {
+        if (isRecording) {
+            stopRecording();
+            return; 
+        }
+        setIsLive(false);
+    };
 
     if (role === 'student' && isPaid && !hasPurchased) {
         return (
@@ -137,7 +247,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                 overflow: 'hidden',
                 transition: 'all 0.3s ease'
             }}>
-                {/* Mock Video Feed */}
+                {/* ... (Mock Video Feed content remains same) ... */}
                 <Box sx={{ 
                     width: '100%', 
                     height: '100%', 
@@ -174,9 +284,24 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                      )}
                 </Box>
                 
-                {/* Live Badge */}
+                {/* Live Badge & Timer */}
                 {isLive && (
-                    <Chip label="LIVE" color="error" size="small" sx={{ position: 'absolute', top: 16, left: 16, borderRadius: 1 }} />
+                    <Box sx={{ position: 'absolute', top: 16, left: 16, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip label="LIVE" color="error" size="small" sx={{ borderRadius: 1 }} />
+                        {isRecording && (
+                            <Chip 
+                                icon={<RadioButtonChecked sx={{ fontSize: 14, color: 'white !important', animation: 'pulse 1.5s infinite' }} />}
+                                label={formatTime(recordingTime)} 
+                                size="small" 
+                                sx={{ 
+                                    bgcolor: 'rgba(255, 0, 0, 0.6)', 
+                                    color: 'white', 
+                                    borderRadius: 1,
+                                    '& .MuiChip-icon': { ml: 0.5 }
+                                }} 
+                            />
+                        )}
+                    </Box>
                 )}
                 
                 {/* Viewer Count & Controls Overlay */}
@@ -219,7 +344,25 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                         <IconButton onClick={toggleVideo} sx={{ color: isVideoStopped ? '#ff0055' : 'white', border: '1px solid rgba(255,255,255,0.3)' }}>
                             {isVideoStopped ? <VideocamOff /> : <Videocam />}
                         </IconButton>
-                        <Button variant="contained" color="error" size="small" onClick={() => setIsLive(false)} sx={{ borderRadius: 4 }}>
+                        
+                        {/* Recording Button */}
+                        <IconButton 
+                            onClick={isRecording ? stopRecording : startRecording} 
+                            sx={{ 
+                                color: isRecording ? '#ff0055' : 'white', 
+                                border: '1px solid rgba(255,255,255,0.3)',
+                                animation: isRecording ? 'pulse 1.5s infinite' : 'none',
+                                '@keyframes pulse': {
+                                    '0%': { boxShadow: '0 0 0 0 rgba(255, 0, 85, 0.4)' },
+                                    '70%': { boxShadow: '0 0 0 10px rgba(255, 0, 85, 0)' },
+                                    '100%': { boxShadow: '0 0 0 0 rgba(255, 0, 85, 0)' }
+                                }
+                            }}
+                        >
+                            {isRecording ? <StopCircle /> : <RadioButtonChecked />}
+                        </IconButton>
+
+                        <Button variant="contained" color="error" size="small" onClick={handleLeave} sx={{ borderRadius: 4 }}>
                             Leave
                         </Button>
                     </Box>
@@ -244,6 +387,13 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                 remoteStreams={remoteStreams} 
                 pinnedStreamId={pinnedStreamId} 
                 onPinStream={setPinnedStreamId} 
+            />
+
+            {/* Save Recording Dialog */}
+            <SaveRecordingDialog 
+                open={saveDialogOpen} 
+                onClose={() => setSaveDialogOpen(false)} 
+                onSave={handleSaveRecording} 
             />
         </Container>
     )

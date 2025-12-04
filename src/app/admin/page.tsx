@@ -8,6 +8,7 @@ import { ReelsFeed } from '@/modules/reels/components/reels-feed'
 import { UploadReelDialog } from '@/modules/reels/components/upload-reel-dialog'
 import { ClassesManagement } from '@/modules/classes/components/classes-management'
 import { ProfileView } from '@/modules/profile/components/profile-view'
+import { RecordingsList } from '@/modules/recordings/components/recordings-list'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -69,6 +70,7 @@ const AdminPage = () => {
           if (tab === 'reels') setValue(4);
           if (tab === 'manage-classes') setValue(5);
           if (tab === 'profile') setValue(6);
+          if (tab === 'recordings') setValue(7);
       }
   }, [searchParams]);
 
@@ -92,15 +94,12 @@ const AdminPage = () => {
           if (newValue === 4) newUrl.searchParams.set('tab', 'reels');
           if (newValue === 5) newUrl.searchParams.set('tab', 'manage-classes');
           if (newValue === 6) newUrl.searchParams.set('tab', 'profile');
+          if (newValue === 7) newUrl.searchParams.set('tab', 'recordings');
           
           if (newValue !== 4) newUrl.searchParams.delete('reelId');
-          // We don't delete session for tab 0 anymore if we want to support classes there, 
-          // but typically 'Go Live' implies the main stream. 
-          // If the user wants to stream a specific class, they might need a way to select it.
-          // For now, let's assume 'Go Live' uses the current session ID if set, or public-stream.
           if (newValue !== 0) newUrl.searchParams.delete('session');
           
-          window.history.replaceState({}, '', newUrl.toString());
+          router.replace(newUrl.pathname + newUrl.search);
       }
   };
 
@@ -160,6 +159,13 @@ const AdminPage = () => {
                 sx={{ color: value === 2 ? '#ff0055' : 'var(--text-secondary)' }}
               >
                 <Notifications />
+              </IconButton>
+
+              <IconButton 
+                onClick={() => handleTabChange(7)} 
+                sx={{ color: value === 7 ? '#ff0055' : 'var(--text-secondary)' }}
+              >
+                <VideoLibrary />
               </IconButton>
 
               <IconButton 
@@ -227,6 +233,12 @@ const AdminPage = () => {
                     <ListItemText primary="Reminders" sx={{ color: value === 2 ? '#ff0055' : 'white' }} />
                 </ListItemButton>
             </ListItem>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(7); setMobileOpen(false); }} selected={value === 7}>
+                    <ListItemIcon sx={{ color: value === 7 ? '#ff0055' : '#888' }}><VideoLibrary /></ListItemIcon>
+                    <ListItemText primary="Recordings" sx={{ color: value === 7 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
             <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
             <ListItem disablePadding>
                 <ListItemButton onClick={handleLogout}>
@@ -251,6 +263,7 @@ const AdminPage = () => {
         {value === 4 && <ReelsFeed key={feedKey} />}
         {value === 5 && <ClassesManagement />}
         {value === 6 && <ProfileView />}
+        {value === 7 && <RecordingsList role="admin" />}
       </Box>
       
       {/* Bottom Navigation */}

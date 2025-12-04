@@ -1,15 +1,32 @@
 'use client'
 import React, { useState } from 'react'
-import { Box, Button, TextField, Typography, Alert, MenuItem, InputAdornment, IconButton } from '@mui/material'
-import { signup } from '@/app/auth/actions'
+import { Box, Button, TextField, Typography, Alert, MenuItem, InputAdornment, IconButton, Divider, CircularProgress } from '@mui/material'
+import { signup, signInWithGoogle } from '@/app/auth/actions'
 import { Visibility, VisibilityOff } from '@mui/icons-material'
+import GoogleIcon from '@mui/icons-material/Google'
 import Link from 'next/link'
 
 const SignupPage = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    setError('')
+    try {
+      const result = await signInWithGoogle()
+      if (result?.error) {
+        setError(result.error)
+        setGoogleLoading(false)
+      }
+    } catch {
+      setError('Failed to sign in with Google')
+      setGoogleLoading(false)
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -96,6 +113,43 @@ const SignupPage = () => {
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+        {/* Google Sign-In Button */}
+        <Button
+          type="button"
+          variant="outlined"
+          fullWidth
+          size="large"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading || loading}
+          startIcon={googleLoading ? <CircularProgress size={20} /> : <GoogleIcon />}
+          sx={{ 
+            mb: 2,
+            borderColor: 'rgba(255, 255, 255, 0.3)',
+            color: 'var(--text-primary)',
+            '&:hover': { 
+              borderColor: 'var(--primary)',
+              bgcolor: 'rgba(255, 255, 255, 0.05)'
+            },
+            textTransform: 'none',
+            fontSize: '1rem',
+            py: 1.5
+          }}
+        >
+          {googleLoading ? 'Connecting...' : 'Sign up with Google'}
+        </Button>
+
+        <Divider sx={{ 
+          my: 2, 
+          color: 'var(--text-secondary)',
+          '&::before, &::after': { 
+            borderColor: 'rgba(255, 255, 255, 0.2)' 
+          }
+        }}>
+          <Typography variant="body2" sx={{ color: 'var(--text-secondary)', px: 1 }}>
+            or
+          </Typography>
+        </Divider>
 
         <TextField
             name="fullName"

@@ -8,6 +8,7 @@ import { ReelsFeed } from '@/modules/reels/components/reels-feed'
 import { UploadReelDialog } from '@/modules/reels/components/upload-reel-dialog'
 import { StudentClassesView } from '@/modules/classes/components/student-classes-view'
 import { ProfileView } from '@/modules/profile/components/profile-view'
+import { RecordingsList } from '@/modules/recordings/components/recordings-list'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -69,6 +70,7 @@ const StudentPage = () => {
           if (tab === 'reels') setValue(3);
           if (tab === 'my-classes') setValue(4);
           if (tab === 'profile') setValue(5);
+          if (tab === 'recordings') setValue(6);
       }
   }, [searchParams]);
 
@@ -89,11 +91,12 @@ const StudentPage = () => {
           if (newValue === 3) newUrl.searchParams.set('tab', 'reels');
           if (newValue === 4) newUrl.searchParams.set('tab', 'my-classes');
           if (newValue === 5) newUrl.searchParams.set('tab', 'profile');
+          if (newValue === 6) newUrl.searchParams.set('tab', 'recordings');
           
           if (newValue !== 3) newUrl.searchParams.delete('reelId');
           if (newValue !== 0) newUrl.searchParams.delete('session');
           
-          window.history.replaceState({}, '', newUrl.toString());
+          router.replace(newUrl.pathname + newUrl.search);
       }
   };
 
@@ -140,6 +143,14 @@ const StudentPage = () => {
           </Box>
 
           <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
+              <IconButton 
+                onClick={() => handleTabChange(6)} 
+                sx={{ color: value === 6 ? '#ff0055' : 'var(--text-secondary)' }}
+                title="Class Recordings"
+              >
+                <VideoLibrary />
+              </IconButton>
+
               <IconButton 
                 onClick={() => handleTabChange(4)} 
                 sx={{ color: value === 4 ? '#ff0055' : 'var(--text-secondary)' }}
@@ -219,6 +230,12 @@ const StudentPage = () => {
                     <ListItemText primary="Reminders" sx={{ color: value === 1 ? '#ff0055' : 'white' }} />
                 </ListItemButton>
             </ListItem>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(6); setMobileOpen(false); }} selected={value === 6}>
+                    <ListItemIcon sx={{ color: value === 6 ? '#ff0055' : '#888' }}><VideoLibrary /></ListItemIcon>
+                    <ListItemText primary="Recordings" sx={{ color: value === 6 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
             <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
             <ListItem disablePadding>
                 <ListItemButton onClick={handleLogout}>
@@ -238,6 +255,7 @@ const StudentPage = () => {
         {value === 3 && <ReelsFeed key={feedKey} />}
         {value === 4 && <StudentClassesView />}
         {value === 5 && <ProfileView />}
+        {value === 6 && <RecordingsList role="student" />}
       </Box>
       
       {/* Bottom Navigation */}

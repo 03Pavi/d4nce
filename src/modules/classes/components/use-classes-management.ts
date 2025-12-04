@@ -13,7 +13,8 @@ export const useClassesManagement = () => {
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false)
   const [selectedClass, setSelectedClass] = useState<Class | null>(null)
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([])
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' })
 
   const generateSessionId = () => {
@@ -66,6 +67,7 @@ export const useClassesManagement = () => {
   }, [])
 
   const fetchClasses = async () => {
+    setIsLoading(true);
     const { data, error } = await supabase
       .from('classes')
       .select(`
@@ -85,9 +87,11 @@ export const useClassesManagement = () => {
     }))
 
     setClasses(classesWithCount || [])
+    setIsLoading(false);
   }
 
   const fetchStudents = async () => {
+    setIsLoading(true);
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, email, avatar_url')
@@ -100,9 +104,11 @@ export const useClassesManagement = () => {
     }
 
     setStudents(data || [])
+    setIsLoading(false);
   }
 
   const fetchEnrollments = async (classId: string) => {
+    setIsLoading(true);
     const { data, error } = await supabase
       .from('class_enrollments')
       .select(`
@@ -117,6 +123,7 @@ export const useClassesManagement = () => {
     }
 
     setEnrollments(data || [])
+    setIsLoading(false);
   }
 
   const handleCreateClass = async () => {
@@ -328,6 +335,7 @@ export const useClassesManagement = () => {
     handleJoinClass,
     toggleStudentSelection,
     getAvailableStudents,
-    fetchClasses
+    fetchClasses,
+    isLoading
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react'
-import { Box, Button, TextField, Typography, Alert, InputAdornment, IconButton, Divider, CircularProgress } from '@mui/material'
+import { Box, Button, TextField, Typography, Alert, InputAdornment, IconButton, Divider, CircularProgress, FormControlLabel, Checkbox } from '@mui/material'
 import { Visibility, VisibilityOff } from '@mui/icons-material'
 import GoogleIcon from '@mui/icons-material/Google'
 import { login, signInWithGoogle } from '@/app/auth/actions'
@@ -11,6 +11,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     if(loading) return
@@ -25,10 +26,11 @@ const LoginPage = () => {
       setError(result.error)
       setLoading(false)
     }
-    // If success, the action will redirect
   }
 
   const handleGoogleSignIn = async () => {
+     
+    return setError('Feature not available yet')
     setGoogleLoading(true)
     setError('')
     try {
@@ -93,7 +95,7 @@ const LoginPage = () => {
             py: 1.5
           }}
         >
-          Continue with Google
+          {googleLoading ? 'Connecting...' : 'Continue with Google'}
         </Button>
 
         <Divider sx={{ 
@@ -114,6 +116,7 @@ const LoginPage = () => {
             fullWidth
             margin="normal"
             required
+            autoComplete={rememberMe ? 'email' : 'off'}
         />
         <TextField
             name="password"
@@ -122,6 +125,7 @@ const LoginPage = () => {
             fullWidth
             margin="normal"
             required
+            autoComplete={rememberMe ? 'current-password' : 'off'}
            slotProps={{
             input:{
                 endAdornment: (
@@ -138,6 +142,23 @@ const LoginPage = () => {
               ),
             }
            }}
+        />
+
+        <FormControlLabel
+            control={
+                <Checkbox
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    sx={{
+                        color: 'var(--text-secondary)',
+                        '&.Mui-checked': {
+                            color: 'var(--primary)',
+                        },
+                    }}
+                />
+            }
+            label={<Typography variant="body2" sx={{ color: 'var(--text-secondary)' }}>Remember me</Typography>}
+            sx={{ mt: 1 }}
         />
 
         <Button 
