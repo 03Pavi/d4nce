@@ -9,9 +9,13 @@ import {
     Container, 
     CircularProgress,
     Fade,
-    IconButton
+    IconButton,
+    CardActions,
+    DialogTitle,
+    DialogContent,
+    Dialog
 } from '@mui/material';
-import { CloudUpload, VideoLibrary, Delete, PlayArrow } from '@mui/icons-material';
+import { CloudUpload, VideoLibrary, Delete, PlayArrow, Visibility, Close, Download } from '@mui/icons-material';
 import { createClient } from '@/lib/supabase/client';
 import ReactPlayer from 'react-player';
 import dayjs from 'dayjs';
@@ -44,6 +48,9 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
     const [editOpen, setEditOpen] = useState(false);
     const [editingRecording, setEditingRecording] = useState<Recording | null>(null);
 
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewRecording, setPreviewRecording] = useState<Recording | null>(null);
+
     const supabase = createClient();
 
     useEffect(() => {
@@ -64,16 +71,13 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
             if (role === 'student') {
                 // Fetch student enrollments
                 const { data: enrollments } = await supabase
-                    .from('enrollments')
+                    .from('class_enrollments')
                     .select('class_id')
                     .eq('student_id', user.id);
 
                 const enrolledClassIds = enrollments?.map(e => e.class_id) || [];
                 
                 // Filter recordings: either public (class_id is null) or matching enrolled class_id
-                // Supabase doesn't support complex OR with different columns easily in one go without raw SQL or 'or' syntax.
-                // .or(`class_id.in.(${enrolledClassIds.join(',')}),class_id.is.null`)
-                
                 if (enrolledClassIds.length > 0) {
                      query = query.or(`class_id.in.(${enrolledClassIds.join(',')}),class_id.is.null`);
                 } else {
@@ -106,7 +110,6 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
     };
 
     const handleConfirmDelete = async () => {
-        // ... existing delete logic
         if (!deleteId) return;
 
         const { error } = await supabase
@@ -125,6 +128,15 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
 
     const handleEditSuccess = () => {
         fetchRecordings();
+    };
+
+    const handlePreview = (recording: Recording) => {
+        setPreviewRecording(recording);
+        setPreviewOpen(true);
+    };
+
+    const handleDownload = (recording: Recording) => {
+        window.open(recording.video_url, '_blank');
     };
 
     return (
@@ -274,6 +286,24 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
                                                 </Typography>
                                             )}
                                         </CardContent>
+                                        <CardActions sx={{ p: 2, pt: 0 }}>
+                                            <Button 
+                                                size="small" 
+                                                startIcon={<Visibility />} 
+                                                onClick={() => handlePreview(recording)}
+                                                sx={{ color: '#ff0055' }}
+                                            >
+                                                Preview
+                                            </Button>
+                                            <Button 
+                                                size="small" 
+                                                startIcon={<Download />} 
+                                                onClick={() => handleDownload(recording)}
+                                                sx={{ color: '#fff' }}
+                                            >
+                                                Download
+                                            </Button>
+                                        </CardActions>
                                     </Card>
                                 </Grid>
                             ))}
@@ -302,6 +332,34 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
                 onConfirm={handleConfirmDelete} 
                 onCancel={() => setConfirmOpen(false)} 
             />
+
+            <Dialog 
+                open={previewOpen} 
+                onClose={() => setPreviewOpen(false)}
+                maxWidth="lg"
+                fullWidth
+            >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#000', color: 'white' }}>
+                    {previewRecording?.title}
+                    <IconButton onClick={() => setPreviewOpen(false)} sx={{ color: 'white' }}>
+                        <Close />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 0, bgcolor: 'black', display: 'flex', justifyContent: 'center' }}>
+                    {previewRecording && (
+                        <Box sx={{ width: '100%', aspectRatio: '16/9' }}>
+                            <ReactPlayer
+                                // @ts-ignore
+                                url={previewRecording.video_url}
+                                width="100%"
+                                height="100%"
+                                controls
+                                playing
+                            />
+                        </Box>
+                    )}
+                </DialogContent>
+            </Dialog>
         </Box>
     );
 };
