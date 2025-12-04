@@ -1,44 +1,17 @@
 'use client'
-import React, { useState, useRef, useEffect } from 'react'
-import { Box, CircularProgress, Container } from '@mui/material'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { Box, CircularProgress, Container, Typography } from '@mui/material'
 import { createClient } from '@/lib/supabase/client'
 import { CommentsDrawer } from './comments-drawer'
 import { EditReelDialog } from './edit-reel-dialog'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import PullToRefresh from 'react-pull-to-refresh';
 import { ReelItem } from './reel-item'
 import { ProfileDialog } from '@/modules/profile/components/profile-dialog'
 
-// Mock Data as fallback
-const MOCK_REELS = [
-  {
-    id: '1',
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    user: 'DanceMaster',
-    user_avatar: null,
-    description: 'Learning the new choreography! 💃 #dance #class',
-    likes_count: 1200,
-    comments_count: 342,
-  },
-  {
-    id: '2',
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    user: 'GrooveStudio',
-    user_avatar: null,
-    description: 'Live session highlights from yesterday 🔥',
-    likes_count: 856,
-    comments_count: 120,
-  },
-   {
-    id: '3',
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    user: 'UrbanBeats',
-    user_avatar: null,
-    description: 'Hip hop basics 101. Join our live class!',
-    likes_count: 2500,
-    comments_count: 500,
-  },
-]
+// Constants for pagination
+const PAGE_SIZE = 10;
+
+
 
 export const ReelsFeed = () => {
     const [activeIndex, setActiveIndex] = useState(0);
@@ -47,6 +20,11 @@ export const ReelsFeed = () => {
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState<string | null>(null);
     const [likedReels, setLikedReels] = useState<Set<string>>(new Set());
+    
+    // Infinite scroll state
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [page, setPage] = useState(0);
     
     // Comments state
     const [commentsOpen, setCommentsOpen] = useState(false);
@@ -62,18 +40,96 @@ export const ReelsFeed = () => {
 
     const supabase = createClient()
 
+    // Initial fetch
     useEffect(() => {
       fetchUserAndReels();
     }, []);
 
+    // Realtime subscription for new reels
+    useEffect(() => {
+        const channel = supabase
+            .channel('reels-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'reels',
+                },
+                async (payload) => {
+                    console.log('New reel received:', payload);
+                    // Fetch the complete reel with profile data
+                    const { data: newReelData, error } = await supabase
+                        .from('reels')
+                        .select(`
+                            *,
+                            profiles:profiles!reels_user_id_fkey (
+                                full_name,
+                                avatar_url
+                            )
+                        `)
+                        .eq('id', payload.new.id)
+                        .single();
+
+                    if (!error && newReelData) {
+                        const formattedReel = {
+                            ...newReelData,
+                            user: newReelData.profiles?.full_name || 'Unknown User',
+                            user_avatar: newReelData.profiles?.avatar_url
+                        };
+                        // Add new reel to the beginning of the list
+                        setReels(prev => [formattedReel, ...prev]);
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'reels',
+                },
+                (payload) => {
+                    console.log('Reel updated:', payload);
+                    // Update the reel in the list
+                    setReels(prev => prev.map(reel => 
+                        reel.id === payload.new.id 
+                            ? { ...reel, ...payload.new }
+                            : reel
+                    ));
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'DELETE',
+                    schema: 'public',
+                    table: 'reels',
+                },
+                (payload) => {
+                    console.log('Reel deleted:', payload);
+                    // Remove the reel from the list
+                    setReels(prev => prev.filter(reel => reel.id !== payload.old.id));
+                }
+            )
+            .subscribe();
+
+        // Cleanup subscription on unmount
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [supabase]);
+
     const fetchUserAndReels = async () => {
         setLoading(true);
+        setPage(0);
+        setHasMore(true);
         try {
             // 1. Get User
             const { data: { user } } = await supabase.auth.getUser();
             setUserId(user?.id || null);
 
-            // 2. Get Reels
+            // 2. Get Reels with pagination
             const { data: reelsData, error: reelsError } = await supabase
               .from('reels')
               .select(`
@@ -83,7 +139,8 @@ export const ReelsFeed = () => {
                   avatar_url
                 )
               `)
-              .order('created_at', { ascending: false });
+              .order('created_at', { ascending: false })
+              .range(0, PAGE_SIZE - 1);
 
             if (reelsError) throw reelsError;
 
@@ -94,6 +151,7 @@ export const ReelsFeed = () => {
                     user_avatar: reel.profiles?.avatar_url
                 }));
                 setReels(formattedReels);
+                setHasMore(reelsData.length === PAGE_SIZE);
 
                 // 3. Get Likes for this user if logged in
                 if (user) {
@@ -107,15 +165,67 @@ export const ReelsFeed = () => {
                     }
                 }
             } else {
-                setReels(MOCK_REELS);
+                setReels([]);
+                setHasMore(false);
             }
         } catch (err) {
             console.error('Error fetching data:', err);
-            setReels(MOCK_REELS);
+            setReels([]);
+            setHasMore(false);
         } finally {
             setLoading(false);
         }
     };
+
+    // Load more reels for infinite scroll
+    const loadMoreReels = useCallback(async () => {
+        if (loadingMore || !hasMore) return;
+        
+        setLoadingMore(true);
+        const nextPage = page + 1;
+        const start = nextPage * PAGE_SIZE;
+        const end = start + PAGE_SIZE - 1;
+
+        try {
+            const { data: moreReels, error } = await supabase
+                .from('reels')
+                .select(`
+                    *,
+                    profiles:profiles!reels_user_id_fkey (
+                        full_name,
+                        avatar_url
+                    )
+                `)
+                .order('created_at', { ascending: false })
+                .range(start, end);
+
+            if (error) throw error;
+
+            if (moreReels && moreReels.length > 0) {
+                const formattedReels = moreReels.map(reel => ({
+                    ...reel,
+                    user: reel.profiles?.full_name || 'Unknown User',
+                    user_avatar: reel.profiles?.avatar_url
+                }));
+                
+                // Filter out duplicates (in case realtime added some)
+                setReels(prev => {
+                    const existingIds = new Set(prev.map(r => r.id));
+                    const newReels = formattedReels.filter(r => !existingIds.has(r.id));
+                    return [...prev, ...newReels];
+                });
+                
+                setPage(nextPage);
+                setHasMore(moreReels.length === PAGE_SIZE);
+            } else {
+                setHasMore(false);
+            }
+        } catch (err) {
+            console.error('Error loading more reels:', err);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [loadingMore, hasMore, page, supabase]);
 
     const handleToggleLike = async (reelId: string, isLiked: boolean) => {
         if (!userId) return;
@@ -188,6 +298,11 @@ export const ReelsFeed = () => {
                     window.history.replaceState({}, '', newUrl.toString());
                 }
             }
+
+            // Infinite scroll: load more when user is 2 reels away from the end
+            if (index >= reels.length - 3 && hasMore && !loadingMore) {
+                loadMoreReels();
+            }
         }
     };
 
@@ -253,6 +368,29 @@ export const ReelsFeed = () => {
                 bgcolor: 'var(--background)',
             }}
             >
+        {/* Empty state when no reels */}
+        {reels.length === 0 && !loading && (
+            <Box
+                sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    bgcolor: 'var(--background)',
+                    gap: 2,
+                }}
+            >
+                <Box sx={{ fontSize: 64, opacity: 0.3 }}>🎬</Box>
+                <Typography variant="h6" sx={{ color: 'var(--text-secondary)', opacity: 0.7 }}>
+                    No reels yet
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'var(--text-secondary)', opacity: 0.5 }}>
+                    Be the first to upload a reel!
+                </Typography>
+            </Box>
+        )}
+
         {reels.map((reel, index) => (
             <ReelItem 
                 key={reel.id} 
@@ -267,6 +405,38 @@ export const ReelsFeed = () => {
                 onEditReel={handleEditReel}
             />
         ))}
+        
+        {/* Loading indicator for infinite scroll */}
+        {loadingMore && (
+            <Box
+                sx={{
+                    height: '100px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    bgcolor: 'var(--background)',
+                }}
+            >
+                <CircularProgress size={32} sx={{ color: '#ff0055' }} />
+            </Box>
+        )}
+        
+        {/* End of feed indicator */}
+        {!hasMore && reels.length > 0 && (
+            <Box
+                sx={{
+                    height: '80px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    bgcolor: 'var(--background)',
+                }}
+            >
+                <Typography variant="body2" sx={{ color: 'var(--text-secondary)', opacity: 0.6 }}>
+                    ✨ You've seen all the reels!
+                </Typography>
+            </Box>
+        )}
             </Box>
         </Container>
 

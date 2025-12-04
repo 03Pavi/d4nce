@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import { EditProfileDialog } from './edit-profile-dialog'
 
 import { UserListDialog } from './user-list-dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 export const ProfileView = () => {
   const [profile, setProfile] = useState<any>(null)
@@ -21,6 +22,10 @@ export const ProfileView = () => {
   const [editOpen, setEditOpen] = useState(false)
   const [userListOpen, setUserListOpen] = useState(false)
   const [userListType, setUserListType] = useState<'followers' | 'following'>('followers')
+  
+  // Delete Confirmation State
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   
   const supabase = createClient()
 
@@ -61,14 +66,22 @@ export const ProfileView = () => {
     }
   }
 
-  const handleDeleteReel = async (reelId: string) => {
-    if (!confirm('Are you sure you want to delete this reel?')) return
+  const handleDeleteReel = (reelId: string) => {
+    setDeleteId(reelId);
+    setConfirmOpen(true);
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
 
     try {
-        await supabase.from('reels').delete().eq('id', reelId)
-        setReels(prev => prev.filter(r => r.id !== reelId))
+        await supabase.from('reels').delete().eq('id', deleteId)
+        setReels(prev => prev.filter(r => r.id !== deleteId))
     } catch (err) {
         console.error('Error deleting reel:', err)
+    } finally {
+        setConfirmOpen(false);
+        setDeleteId(null);
     }
   }
 
@@ -219,6 +232,14 @@ export const ProfileView = () => {
             profileId={profile.id}
         />
       )}
+
+      <ConfirmDialog 
+        open={confirmOpen} 
+        title="Delete Reel" 
+        message="Are you sure you want to delete this reel? This action cannot be undone." 
+        onConfirm={handleConfirmDelete} 
+        onCancel={() => setConfirmOpen(false)} 
+      />
     </Box>
   )
 }

@@ -1,13 +1,15 @@
 'use client'
 import React, { useState } from 'react'
-import { Box, Button, TextField, Typography, Alert, MenuItem } from '@mui/material'
+import { Box, Button, TextField, Typography, Alert, MenuItem, InputAdornment, IconButton } from '@mui/material'
 import { signup } from '@/app/auth/actions'
+import { Visibility, VisibilityOff } from '@mui/icons-material'
 import Link from 'next/link'
 
 const SignupPage = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -100,18 +102,14 @@ const SignupPage = () => {
             label="Full Name"
             fullWidth
             margin="normal"
-            required
-            sx={{
-            '& .MuiOutlinedInput-root': {
-              color: 'var(--text-primary)',
-              bgcolor: 'rgba(255,255,255,0.03)',
-              '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-              '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-              '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
-            },
-            '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-            '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' }
+            slotProps={{
+              htmlInput:{
+                form: {
+                    autocomplete: 'off',  
+                },
+              }
             }}
+            required
         />
 
         <TextField
@@ -121,37 +119,31 @@ const SignupPage = () => {
             fullWidth
             margin="normal"
             required
-            sx={{
-            '& .MuiOutlinedInput-root': {
-              color: 'var(--text-primary)',
-              bgcolor: 'rgba(255,255,255,0.03)',
-              '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-              '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-              '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
-            },
-            '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-            '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' }
-            }}
         />
 
         <TextField
             name="password"
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             fullWidth
             margin="normal"
+            slotProps={{
+              input:{
+                endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowPassword(!showPassword)}
+                    edge="end"
+                    sx={{ color: 'var(--text-secondary)' }}
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }
+          }}
             required
-            sx={{
-            '& .MuiOutlinedInput-root': {
-              color: 'var(--text-primary)',
-              bgcolor: 'rgba(255,255,255,0.03)',
-              '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-              '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-              '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
-            },
-            '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-            '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' }
-            }}
         />
 
         <TextField
@@ -161,17 +153,12 @@ const SignupPage = () => {
             fullWidth
             margin="normal"
             defaultValue="student"
-            sx={{
-            '& .MuiOutlinedInput-root': {
-              color: 'var(--text-primary)',
-              bgcolor: 'rgba(255,255,255,0.03)',
-              '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-              '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-              '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
-            },
-            '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-            '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' },
-            '& .MuiSelect-icon': { color: 'var(--text-secondary)' }
+            slotProps={{
+              htmlInput:{
+                form: {
+                    autocomplete: 'off',  
+                },
+              }
             }}
         >
             <MenuItem value="student">Student</MenuItem>

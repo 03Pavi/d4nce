@@ -20,7 +20,15 @@ export const useClassesManagement = () => {
     return Math.random().toString(36).substring(2, 10) + '-' + Math.random().toString(36).substring(2, 6);
   }
 
-  const [newClass, setNewClass] = useState({
+  const [newClass, setNewClass] = useState<{
+    title: string;
+    description: string;
+    session_id: string;
+    price: number | string;
+    max_students: number | string;
+    scheduled_at: dayjs.Dayjs;
+    duration_minutes: number | string;
+  }>({
     title: '',
     description: '',
     session_id: generateSessionId(),
@@ -30,7 +38,16 @@ export const useClassesManagement = () => {
     duration_minutes: 60
   })
 
-  const [editClass, setEditClass] = useState({
+  const [editClass, setEditClass] = useState<{
+    id: string;
+    title: string;
+    description: string;
+    session_id: string;
+    price: number | string;
+    max_students: number | string;
+    scheduled_at: dayjs.Dayjs;
+    duration_minutes: number | string;
+  }>({
     id: '',
     title: '',
     description: '',
@@ -108,6 +125,11 @@ export const useClassesManagement = () => {
       return
     }
 
+    if (newClass.price === '' || newClass.max_students === '' || newClass.duration_minutes === '') {
+      setSnackbar({ open: true, message: 'Price, Max Students, and Duration cannot be empty', severity: 'error' })
+      return
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -118,10 +140,10 @@ export const useClassesManagement = () => {
         description: newClass.description,
         instructor_id: user.id,
         session_id: newClass.session_id,
-        price: newClass.price,
-        max_students: newClass.max_students,
+        price: Number(newClass.price),
+        max_students: Number(newClass.max_students),
         scheduled_at: newClass.scheduled_at.toISOString(),
-        duration_minutes: newClass.duration_minutes
+        duration_minutes: Number(newClass.duration_minutes)
       })
 
     if (error) {
@@ -232,16 +254,21 @@ export const useClassesManagement = () => {
       return
     }
 
+    if (editClass.price === '' || editClass.max_students === '' || editClass.duration_minutes === '') {
+      setSnackbar({ open: true, message: 'Price, Max Students, and Duration cannot be empty', severity: 'error' })
+      return
+    }
+
     const { error } = await supabase
       .from('classes')
       .update({
         title: editClass.title,
         description: editClass.description,
         session_id: editClass.session_id,
-        price: editClass.price,
-        max_students: editClass.max_students,
+        price: Number(editClass.price),
+        max_students: Number(editClass.max_students),
         scheduled_at: editClass.scheduled_at.toISOString(),
-        duration_minutes: editClass.duration_minutes
+        duration_minutes: Number(editClass.duration_minutes)
       })
       .eq('id', editClass.id)
 

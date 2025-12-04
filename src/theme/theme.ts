@@ -107,6 +107,9 @@ const theme = createTheme({
       },
     },
     MuiTextField: {
+      defaultProps: {
+        autoComplete: 'off',
+      },
       styleOverrides: {
         root: {
           '& .MuiOutlinedInput-root': {
@@ -120,9 +123,32 @@ const theme = createTheme({
             '&.Mui-focused fieldset': {
               borderColor: '#ff0055',
             },
+            // Fix browser autofill background color
+            '& input:-webkit-autofill, & input:-webkit-autofill:hover, & input:-webkit-autofill:focus': {
+              WebkitBoxShadow: '0 0 0 100px rgba(20,20,20,1) inset !important',
+              WebkitTextFillColor: '#ffffff !important',
+              caretColor: '#ffffff',
+              borderRadius: 'inherit',
+            },
+          },
+          '& .MuiInputLabel-root': {
+            color: '#b0b0b0',
+          },
+          '& .MuiInputLabel-root.Mui-focused': {
+            color: '#ff0055',
           },
         }
       }
+    },
+    MuiOutlinedInput: {
+      defaultProps: {
+        autoComplete: 'off',
+      },
+    },
+    MuiInputBase: {
+      defaultProps: {
+        autoComplete: 'off',
+      },
     }
   },
 });

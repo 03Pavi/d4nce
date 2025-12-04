@@ -1,13 +1,15 @@
 'use client'
 import React, { useState } from 'react'
-import { Box, Button, TextField, Typography, Alert, InputAdornment, IconButton } from '@mui/material'
+import { Box, Button, TextField, Typography, Alert, InputAdornment, IconButton, Divider, CircularProgress } from '@mui/material'
 import { Visibility, VisibilityOff } from '@mui/icons-material'
-import { login } from '@/app/auth/actions'
+import GoogleIcon from '@mui/icons-material/Google'
+import { login, signInWithGoogle } from '@/app/auth/actions'
 import Link from 'next/link'
 
 const LoginPage = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -24,6 +26,21 @@ const LoginPage = () => {
       setLoading(false)
     }
     // If success, the action will redirect
+  }
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    setError('')
+    try {
+      const result = await signInWithGoogle()
+      if (result?.error) {
+        setError(result.error)
+        setGoogleLoading(false)
+      }
+    } catch {
+      setError('Failed to sign in with Google')
+      setGoogleLoading(false)
+    }
   }
 
   return (
@@ -54,24 +71,49 @@ const LoginPage = () => {
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+        {/* Google Sign-In Button */}
+        <Button
+          type="button"
+          variant="outlined"
+          fullWidth
+          size="large"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading || loading}
+          startIcon={googleLoading ? <CircularProgress size={20} /> : <GoogleIcon />}
+          sx={{ 
+            mb: 2,
+            borderColor: 'rgba(255, 255, 255, 0.3)',
+            color: 'var(--text-primary)',
+            '&:hover': { 
+              borderColor: 'var(--primary)',
+              bgcolor: 'rgba(255, 255, 255, 0.05)'
+            },
+            textTransform: 'none',
+            fontSize: '1rem',
+            py: 1.5
+          }}
+        >
+          Continue with Google
+        </Button>
+
+        <Divider sx={{ 
+          my: 2, 
+          color: 'var(--text-secondary)',
+          '&::before, &::after': { 
+            borderColor: 'rgba(255, 255, 255, 0.2)' 
+          }
+        }}>
+          <Typography variant="body2" sx={{ color: 'var(--text-secondary)', px: 1 }}>
+            or
+          </Typography>
+        </Divider>
+
         <TextField
             name="email"
             label="Email"
             fullWidth
             margin="normal"
             required
-            sx={{
-            '& .MuiOutlinedInput-root': {
-              color: 'var(--text-primary)',
-              bgcolor: 'rgba(255,255,255,0.03)',
-              '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-              '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-              '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
-            },
-            '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-            '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' }
-            }}
-
         />
         <TextField
             name="password"
@@ -80,8 +122,9 @@ const LoginPage = () => {
             fullWidth
             margin="normal"
             required
-            InputProps={{
-              endAdornment: (
+           slotProps={{
+            input:{
+                endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
                     aria-label="toggle password visibility"
@@ -93,18 +136,8 @@ const LoginPage = () => {
                   </IconButton>
                 </InputAdornment>
               ),
-            }}
-            sx={{
-            '& .MuiOutlinedInput-root': {
-              color: 'var(--text-primary)',
-              bgcolor: 'rgba(255,255,255,0.03)',
-              '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-              '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-              '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
-            },
-            '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
-            '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' }
-            }}
+            }
+           }}
         />
 
         <Button 
@@ -112,6 +145,7 @@ const LoginPage = () => {
             variant="contained" 
             fullWidth 
             size="large"
+            disabled={loading || googleLoading}
             sx={{ mt: 3, bgcolor: 'var(--primary)', '&:hover': { bgcolor: 'var(--primary)', filter: 'brightness(0.8)' } }}
         >
             {loading ? 'Signing In...' : 'Sign In'}
@@ -128,3 +162,4 @@ const LoginPage = () => {
 }
 
 export default LoginPage
+

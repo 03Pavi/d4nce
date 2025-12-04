@@ -66,17 +66,6 @@ export const CreateClassDialog = ({ open, onClose, onCreate, newClass, setNewCla
                 value={newClass.session_id}
                 onChange={(e) => setNewClass({ ...newClass, session_id: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
                 helperText="Unique identifier for live streaming"
-                sx={{ 
-                  '& .MuiInputBase-root': { color: 'white' },
-                  '& .MuiInputLabel-root': { color: '#aaa' },
-                  '& .MuiFormHelperText-root': { color: '#666' },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                    '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-                }}
               />
               <IconButton 
                 onClick={() => setNewClass({ ...newClass, session_id: generateSessionId() })}
@@ -97,25 +86,15 @@ export const CreateClassDialog = ({ open, onClose, onCreate, newClass, setNewCla
                 type="number"
                 fullWidth
                 value={newClass.price}
-                onChange={(e) => setNewClass({ ...newClass, price: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setNewClass({ ...newClass, price: e.target.value })}
                 inputProps={{ min: 0, step: 0.01 }}
-                sx={{ 
-                  '& .MuiInputBase-root': { color: 'white' },
-                  '& .MuiInputLabel-root': { color: '#aaa' },
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                    '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
-                    '&.Mui-focused fieldset': { borderColor: '#ff0055' },
-                  },
-                  '& .MuiInputLabel-root.Mui-focused': { color: '#ff0055' }
-                }}
               />
               <TextField
                 label="Max Students"
                 type="number"
                 fullWidth
                 value={newClass.max_students}
-                onChange={(e) => setNewClass({ ...newClass, max_students: parseInt(e.target.value) || 50 })}
+                onChange={(e) => setNewClass({ ...newClass, max_students: e.target.value })}
                 inputProps={{ min: 1 }}
               />
             </Box>
@@ -129,7 +108,7 @@ export const CreateClassDialog = ({ open, onClose, onCreate, newClass, setNewCla
               type="number"
               fullWidth
               value={newClass.duration_minutes}
-              onChange={(e) => setNewClass({ ...newClass, duration_minutes: parseInt(e.target.value) || 60 })}
+              onChange={(e) => setNewClass({ ...newClass, duration_minutes: e.target.value })}
               inputProps={{ min: 15, step: 15 }}
              
             />

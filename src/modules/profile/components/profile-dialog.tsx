@@ -20,6 +20,7 @@ import dynamic from 'next/dynamic'
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false })
 
 import { UserListDialog } from './user-list-dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
@@ -48,6 +49,10 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
   // User List State
   const [userListOpen, setUserListOpen] = useState(false);
   const [userListType, setUserListType] = useState<'followers' | 'following'>('followers');
+
+  // Delete Confirmation State
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const supabase = createClient()
 
@@ -124,14 +129,22 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
     }
   }
 
-  const handleDeleteReel = async (reelId: string) => {
-    if (!confirm('Are you sure you want to delete this reel?')) return
+  const handleDeleteReel = (reelId: string) => {
+    setDeleteId(reelId);
+    setConfirmOpen(true);
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
 
     try {
-        await supabase.from('reels').delete().eq('id', reelId)
-        setReels(prev => prev.filter(r => r.id !== reelId))
+        await supabase.from('reels').delete().eq('id', deleteId)
+        setReels(prev => prev.filter(r => r.id !== deleteId))
     } catch (err) {
         console.error('Error deleting reel:', err)
+    } finally {
+        setConfirmOpen(false);
+        setDeleteId(null);
     }
   }
 
@@ -292,6 +305,14 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
         title={userListType === 'followers' ? 'Followers' : 'Following'}
         type={userListType}
         profileId={profileId}
+      />
+
+      <ConfirmDialog 
+        open={confirmOpen} 
+        title="Delete Reel" 
+        message="Are you sure you want to delete this reel? This action cannot be undone." 
+        onConfirm={handleConfirmDelete} 
+        onCancel={() => setConfirmOpen(false)} 
       />
     </Dialog>
   )

@@ -11,9 +11,10 @@ interface LiveSessionProps {
     isPaid?: boolean;
     hasPurchased?: boolean;
     sessionId?: string;
+    isPip?: boolean;
 }
 
-export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessionId = 'class-1' }: LiveSessionProps) => {
+export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessionId = 'class-1', isPip = false }: LiveSessionProps) => {
     const [userName, setUserName] = useState<string>(role === 'admin' ? 'Instructor' : 'Student');
     const [isLive, setIsLive] = useState(false); 
     
@@ -88,6 +89,38 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                 </Button>
             </Box>
         )
+    }
+
+    // PiP Mode Rendering
+    if (isPip) {
+        if (!isLive) return null; // Don't show PiP if not live
+
+        return (
+            <Box sx={{ 
+                position: 'fixed', 
+                bottom: 80, 
+                right: 16, 
+                width: 200, 
+                height: 150, 
+                bgcolor: 'black', 
+                borderRadius: 2, 
+                overflow: 'hidden', 
+                zIndex: 9999,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+                <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted={mainStream === localStream} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+                <Box sx={{ position: 'absolute', top: 4, left: 4 }}>
+                    <Chip label="LIVE" color="error" size="small" sx={{ height: 20, fontSize: '0.6rem' }} />
+                </Box>
+            </Box>
+        );
     }
 
     return (

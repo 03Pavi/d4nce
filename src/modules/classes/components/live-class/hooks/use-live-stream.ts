@@ -11,7 +11,6 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
   const [chatMessages, setChatMessages] = useState<{ user: string, text: string }[]>([]);
   const peerRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
-  // Track active connections to prevent duplicate calls
   const connectionsRef = useRef<Set<string>>(new Set());
   const supabase = createClient();
 
@@ -27,7 +26,6 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
       if (typeof window === 'undefined') return;
 
       try {
-        // 1. Get media stream
         try {
           console.log('Requesting local stream...');
           localMediaStream = await navigator.mediaDevices.getUserMedia({
@@ -238,6 +236,11 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
       if (localMediaStream) {
         localMediaStream.getTracks().forEach(track => track.stop());
       }
+      // Reset connections and state to ensure fresh start on rejoin
+      connectionsRef.current.clear();
+      setRemoteStreams({});
+      setConnectedCount(0);
+      setIsConnected(false);
     };
   }, [role, channelName, userName, enabled]);
 

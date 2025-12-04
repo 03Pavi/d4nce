@@ -83,7 +83,7 @@ export const EditClassDialog = ({ open, onClose, onUpdate, editClass, setEditCla
                 type="number"
                 fullWidth
                 value={editClass.price}
-                onChange={(e) => setEditClass({ ...editClass, price: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setEditClass({ ...editClass, price: e.target.value })}
                 inputProps={{ min: 0, step: 0.01 }}
                 sx={{ 
                   '& .MuiInputBase-root': { color: 'white' },
@@ -101,7 +101,7 @@ export const EditClassDialog = ({ open, onClose, onUpdate, editClass, setEditCla
                 type="number"
                 fullWidth
                 value={editClass.max_students}
-                onChange={(e) => setEditClass({ ...editClass, max_students: parseInt(e.target.value) || 50 })}
+                onChange={(e) => setEditClass({ ...editClass, max_students: e.target.value })}
                 inputProps={{ min: 1 }}
                 sx={{ 
                   '& .MuiInputBase-root': { color: 'white' },
@@ -135,7 +135,7 @@ export const EditClassDialog = ({ open, onClose, onUpdate, editClass, setEditCla
               type="number"
               fullWidth
               value={editClass.duration_minutes}
-              onChange={(e) => setEditClass({ ...editClass, duration_minutes: parseInt(e.target.value) || 60 })}
+              onChange={(e) => setEditClass({ ...editClass, duration_minutes: e.target.value })}
               inputProps={{ min: 15, step: 15 }}
              
             />

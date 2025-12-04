@@ -241,7 +241,12 @@ const AdminPage = () => {
 
       {/* Main Content */}
       <Box sx={{ flex: 1, overflow: 'hidden', pb: 7, position: 'relative' }}>
-        {value === 0 && <LiveSession role="admin" sessionId={currentSessionId} />}
+        <LiveSession 
+            role="admin" 
+            sessionId={currentSessionId} 
+            isPip={value !== 0}
+        />
+        
         {value === 2 && <ReminderList role="admin" />}
         {value === 4 && <ReelsFeed key={feedKey} />}
         {value === 5 && <ClassesManagement />}

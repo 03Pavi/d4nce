@@ -52,3 +52,39 @@ export async function signup(formData: FormData) {
 
   return { success: true }
 }
+
+export async function signInWithGoogle(role?: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/auth/callback`,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+      scopes: 'email profile',
+    },
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  if (data.url) {
+    if (role) {
+      const { cookies } = await import('next/headers')
+      const cookieStore = await cookies()
+      cookieStore.set('pending_role', role, {
+        maxAge: 60 * 5,
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production'
+      })
+    }
+    redirect(data.url)
+  }
+
+  return { error: 'Failed to initiate Google sign-in' }
+}
