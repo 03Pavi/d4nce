@@ -28,7 +28,7 @@ export async function notifyNewReel(uploaderName: string, reelId: string) {
   }
 }
 
-export async function notifyCallInvite(callerName: string, communityName: string, receiverIds: string[], roomId: string) {
+export async function notifyCallInvite(callerName: string, communityName: string, receiverIds: string[], roomId: string, url?: string) {
   try {
     await sendNotification(`${callerName} is calling you in ${communityName}`, {
       headings: { en: "📞 Incoming Call" },
@@ -38,6 +38,7 @@ export async function notifyCallInvite(callerName: string, communityName: string
       android_sound: 'notification',
       web_push_topic: 'call_invite',
       priority: 10,
+      url,
     });
     return { success: true };
   } catch (error) {

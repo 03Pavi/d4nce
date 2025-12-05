@@ -11,6 +11,7 @@ interface NotificationOptions {
   android_sound?: string;
   web_push_topic?: string;
   priority?: number;
+  url?: string;
 }
 
 export const sendNotification = async (message: string, options: NotificationOptions = {}) => {
@@ -26,6 +27,11 @@ export const sendNotification = async (message: string, options: NotificationOpt
     data: options.data,
     headings: options.headings,
   };
+
+  // Add url if specified
+  if (options.url) {
+    payload.url = options.url;
+  }
 
   // Add sound if specified
   if (options.ios_sound) {
@@ -61,6 +67,7 @@ export const sendNotification = async (message: string, options: NotificationOpt
         'Authorization': `Basic ${ONESIGNAL_API_KEY}`
       }
     });
+    console.log(response.data, 'response.dataresponse.data')
     console.log("✅ Notification sent successfully:", {
       id: response.data.id,
       recipients: response.data.recipients,

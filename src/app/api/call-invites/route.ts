@@ -49,13 +49,14 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { invites } = body;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('call_invites')
-    .insert(invites);
+    .insert(invites)
+    .select();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, data });
 }

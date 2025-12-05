@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useEffect, useTransition } from 'react'
-import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider } from '@mui/material'
+import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider, Badge } from '@mui/material'
 import { LiveTv, VideoLibrary, AddCircle, Logout, ManageAccounts, Notifications, Person, Menu as MenuIcon, Groups } from '@mui/icons-material'
 import { LiveSession } from '@/modules/classes/components/live-class/components/live-session'
 import { ReminderList } from '@/modules/reminders/components/reminder-list'
@@ -24,9 +24,29 @@ const AdminPage = () => {
   const [isPending, startTransition] = useTransition();
   const [autoJoin, setAutoJoin] = useState(false);
   
+  const [notificationCount, setNotificationCount] = useState(0);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+        try {
+            const res = await fetch('/api/call-invites');
+            if (res.ok) {
+                const data = await res.json();
+                setNotificationCount(data.length);
+            }
+        } catch (error) {
+            console.error("Error fetching notifications", error);
+        }
+    };
+    
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -136,7 +156,7 @@ const AdminPage = () => {
   if (loading) {
       return (
           <Box sx={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'black' }}>
-              <CircularProgress color="secondary" />
+              <CircularProgress  />
           </Box>
       );
   }
@@ -177,7 +197,9 @@ const AdminPage = () => {
                 onClick={() => handleTabChange(2)} 
                 sx={{ color: value === 2 ? '#ff0055' : 'var(--text-secondary)' }}
               >
-                <Notifications />
+                <Badge badgeContent={notificationCount} color="error">
+                    <Notifications />
+                </Badge>
               </IconButton>
 
 

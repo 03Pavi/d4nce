@@ -81,7 +81,7 @@ export const UserListDialog = ({ open, onClose, title, type, profileId }: UserLi
             </Box>
             <Box sx={{ overflowY: 'auto', flex: 1 }}>
                 {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress color="secondary" /></Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress  /></Box>
                 ) : users.length === 0 ? (
                     <Typography sx={{ textAlign: 'center', color: 'var(--text-secondary)', mt: 4 }}>No users found.</Typography>
                 ) : (

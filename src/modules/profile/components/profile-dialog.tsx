@@ -179,7 +179,7 @@ export const ProfileDialog = ({ open, onClose, profileId, currentUserId, onReelC
       <Box sx={{ p: 2, overflowY: 'auto', height: '100%' }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-            <CircularProgress color="secondary" />
+            <CircularProgress  />
           </Box>
         ) : (
           <>

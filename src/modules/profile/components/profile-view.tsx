@@ -9,10 +9,9 @@ import {
 	IconButton,
 	CircularProgress,
 } from "@mui/material";
-import { Edit, Delete } from "@mui/icons-material";
+import { Edit, Delete, Favorite } from "@mui/icons-material";
 import { createClient } from "@/lib/supabase/client";
 import { EditProfileDialog } from "./edit-profile-dialog";
-
 import { UserListDialog } from "./user-list-dialog";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -104,7 +103,7 @@ export const ProfileView = () => {
 					height: "100%",
 				}}
 			>
-				<CircularProgress color="secondary" />
+				<CircularProgress  />
 			</Box>
 		);
 	}
@@ -274,7 +273,7 @@ export const ProfileView = () => {
 											textShadow: "0 1px 2px black",
 										}}
 									>
-										{reel.likes_count} ❤️
+										{reel.likes_count} <Favorite sx={{ color: '#ff0055', fontSize: 14, ml: 0.5 }} />
 									</Typography>
 								</Box>
 

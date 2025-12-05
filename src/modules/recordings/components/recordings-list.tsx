@@ -184,7 +184,7 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
                 <Container maxWidth="lg" sx={{ pb: 4 }}>
                     {loading ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                            <CircularProgress color="secondary" />
+                            <CircularProgress  />
                         </Box>
                     ) : recordings.length === 0 ? (
                         <Fade in={true}>

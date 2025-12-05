@@ -52,7 +52,7 @@ export default function UserProfilePage() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: 'black' }}>
-        <CircularProgress color="secondary" />
+        <CircularProgress  />
       </Box>
     )
   }

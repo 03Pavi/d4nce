@@ -14,6 +14,8 @@ import {
 	Tab,
 	CircularProgress,
 	IconButton,
+	Snackbar,
+	Alert,
 } from "@mui/material";
 import { Search, ArrowBack, GroupAdd, GroupRemove } from "@mui/icons-material";
 import { createClient } from "@/lib/supabase/client";
@@ -21,7 +23,6 @@ import { ReelsFeed } from "@/modules/reels/components/reels-feed";
 import { CommunityChat } from "./community-chat";
 import { StartCallDialog } from "./start-call-dialog";
 import { VideoCall } from "@mui/icons-material";
-import { io } from "socket.io-client";
 import { notifyCallInvite } from "@/app/actions/notifications";
 
 interface Community {
@@ -102,6 +103,11 @@ export const CommunitiesList = () => {
 	const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 	const [userProfile, setUserProfile] = useState<any>(null);
 
+	const [notification, setNotification] = useState<{
+		message: string;
+		type: "success" | "error" | "info";
+	} | null>(null);
+
 	const supabase = createClient();
 
 	useEffect(() => {
@@ -147,7 +153,10 @@ export const CommunitiesList = () => {
 			if (res.ok) {
 				setMembershipStatus((prev) => ({ ...prev, [community.id]: status }));
 				if (status === "pending") {
-					alert("Request sent! Waiting for approval.");
+					setNotification({
+						message: "Request sent! Waiting for approval.",
+						type: "info",
+					});
 				}
 			}
 		} catch (error) {
@@ -206,41 +215,64 @@ export const CommunitiesList = () => {
 				status: "pending",
 			}));
 
-			const { error } = await fetch("/api/call-invites", {
+			const response = await fetch("/api/call-invites", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ invites }),
-			}).then((res) => (res.ok ? { error: null } : { error: "Failed" }));
+			});
 
-			if (error) throw error;
+			const result = await response.json();
+			if (!response.ok || result.error) throw new Error(result.error || "Failed");
 
-			// 2. Emit Socket Event to notify users
-			const socket = io({ path: "/socket.io" });
+			const createdInvites = result.data;
 
+			// 2. Emit Supabase Realtime Event to notify users
 			// We need to fetch the caller's name to show in the notification
 			const callerName = userProfile?.full_name || "Member";
 
-			socket.emit("initiate-call", {
-				roomId,
-				callerId: currentUserId,
-				callerName,
-				communityName: selectedCommunity.name,
-				receiverIds: selectedUserIds,
-			});
+			// Send to each user's personal channel
+			for (const userId of selectedUserIds) {
+				const invite = createdInvites.find((inv: any) => inv.receiver_id === userId);
+				const callInviteId = invite?.id;
+
+				const channel = supabase.channel(`user-${userId}`);
+				channel.subscribe((status) => {
+					if (status === 'SUBSCRIBED') {
+						channel.send({
+							type: 'broadcast',
+							event: 'incoming-call',
+							payload: {
+								roomId,
+								callerId: currentUserId,
+								callerName,
+								communityName: selectedCommunity.name,
+								receiverIds: selectedUserIds, // Optional, context
+								callInviteId,
+							}
+						});
+						// Cleanup after a short delay to ensure message sent
+						setTimeout(() => supabase.removeChannel(channel), 5000);
+					}
+				});
+			}
 
 			// Send Push Notification
 			await notifyCallInvite(
 				callerName,
 				selectedCommunity.name,
 				selectedUserIds,
-				roomId
+				roomId,
+				`${window.location.origin}/student?tab=notifications`
 			);
 
 			// 3. Navigate to the call room immediately
 			window.location.href = `/student?callId=${roomId}&autoJoin=true&tab=live`;
 		} catch (error) {
 			console.error("Error starting call:", error);
-			alert("Failed to start call.");
+			setNotification({
+				message: "Failed to start call.",
+				type: "error",
+			});
 		}
 	};
 
@@ -419,8 +451,15 @@ export const CommunitiesList = () => {
 							<Grid item xs={12} sm={6} md={4} key={community.id}>
 								<Card
 									onClick={() => {
-										setSelectedCommunity(community);
-										setViewTab(1); // Default to Chat
+										if (membershipStatus[community.id] === 'approved') {
+											setSelectedCommunity(community);
+											setViewTab(1); // Default to Chat
+										} else {
+											setNotification({
+												message: "Please join the community to enter.",
+												type: "info",
+											});
+										}
 									}}
 									sx={{
 										bgcolor: "#1a1a1a",
@@ -522,6 +561,21 @@ export const CommunitiesList = () => {
 					</Grid>
 				)}
 			</Box>
+
+			<Snackbar
+				open={!!notification}
+				autoHideDuration={6000}
+				onClose={() => setNotification(null)}
+				anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+			>
+				<Alert
+					severity={notification?.type}
+					onClose={() => setNotification(null)}
+					sx={{ width: "100%" }}
+				>
+					{notification?.message}
+				</Alert>
+			</Snackbar>
 		</Box>
 	);
 };

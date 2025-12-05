@@ -168,7 +168,7 @@ export const CommentsDrawer = ({ open, onClose, reelId, userId }: CommentsDrawer
             
             <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
                 {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress color="secondary" /></Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress  /></Box>
                 ) : comments.length === 0 ? (
                     <Typography sx={{ textAlign: 'center', color: 'var(--text-secondary)', mt: 4 }}>No comments yet. Be the first!</Typography>
                 ) : (

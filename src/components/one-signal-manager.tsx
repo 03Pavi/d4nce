@@ -22,29 +22,37 @@ export const OneSignalManager = () => {
 			if (typeof window !== "undefined" && window.OneSignalDeferred) {
 				window.OneSignalDeferred.push(async function (OneSignal: any) {
 					if (user) {
-						await OneSignal.login(user.id);
-						await OneSignal.Notifications.requestPermission();
+						try {
+							await OneSignal.login(user.id);
+							await OneSignal.Notifications.requestPermission();
 
-						// Handle notification click
-						OneSignal.Notifications.addEventListener("click", (event: any) => {
-							const notification = event.notification;
-							console.log("🔔 Notification clicked:", notification);
+							// Handle notification click
+							OneSignal.Notifications.addEventListener("click", (event: any) => {
+								const notification = event.notification;
+								console.log("🔔 Notification clicked:", notification);
 
-							// Check if this is a call invite notification
-							if (notification.data?.type === "call_invite") {
-								console.log(
-									"📞 Call invite detected, redirecting to communities..."
-								);
-								// Redirect to communities page (tab 1) to accept the call
-								router.push("/student?tab=1");
-							} else if (notification.data?.type === "new_reel") {
-								router.push("/student?tab=2");
-							} else if (notification.data?.type === "live_stream") {
-								router.push("/student?tab=0");
-							}
-						});
+								// Check if this is a call invite notification
+								if (notification.data?.type === "call_invite") {
+									console.log(
+										"📞 Call invite detected, redirecting to communities..."
+									);
+									// Redirect to communities page (tab 1) to accept the call
+									router.push("/student?tab=1");
+								} else if (notification.data?.type === "new_reel") {
+									router.push("/student?tab=2");
+								} else if (notification.data?.type === "live_stream") {
+									router.push("/student?tab=0");
+								}
+							});
+						} catch (error) {
+							console.error("OneSignal login/init error:", error);
+						}
 					} else {
-						await OneSignal.logout();
+						try {
+							await OneSignal.logout();
+						} catch (error) {
+							console.error("OneSignal logout error:", error);
+						}
 					}
 				});
 			}
@@ -63,11 +71,19 @@ export const OneSignalManager = () => {
 							"OneSignal: Auth change - Logging in user",
 							session.user.id
 						);
-						await OneSignal.login(session.user.id);
-						await OneSignal.Notifications.requestPermission();
+						try {
+							await OneSignal.login(session.user.id);
+							await OneSignal.Notifications.requestPermission();
+						} catch (error) {
+							console.error("OneSignal auth login error:", error);
+						}
 					} else {
 						console.log("OneSignal: Auth change - Logging out");
-						await OneSignal.logout();
+						try {
+							await OneSignal.logout();
+						} catch (error) {
+							console.error("OneSignal auth logout error:", error);
+						}
 					}
 				});
 			}

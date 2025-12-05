@@ -24,9 +24,29 @@ const StudentPage = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [autoJoin, setAutoJoin] = useState(false);
   
+  const [notificationCount, setNotificationCount] = useState(0);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+        try {
+            const res = await fetch('/api/call-invites');
+            if (res.ok) {
+                const data = await res.json();
+                setNotificationCount(data.length);
+            }
+        } catch (error) {
+            console.error("Error fetching notifications", error);
+        }
+    };
+    
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -131,7 +151,7 @@ const StudentPage = () => {
   if (loading) {
       return (
           <Box sx={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'black' }}>
-              <CircularProgress color="secondary" />
+              <CircularProgress  />
           </Box>
       );
   }
@@ -187,7 +207,9 @@ const StudentPage = () => {
                 onClick={() => handleTabChange(1)} 
                 sx={{ color: value === 1 ? '#ff0055' : 'var(--text-secondary)' }}
               >
-                <Notifications />
+                <Badge badgeContent={notificationCount} color="error">
+                    <Notifications />
+                </Badge>
               </IconButton>
 
               <IconButton 
@@ -281,7 +303,14 @@ const StudentPage = () => {
 
       {/* Main Content */}
       <Box sx={{ flex: 1, overflow: 'hidden', pb: 7, position: 'relative' }}>
-        {value === 0 && <LiveSession role="student" isPaid={false} sessionId={currentSessionId} autoJoin={autoJoin} />}
+        <LiveSession 
+            role="student" 
+            isPaid={false} 
+            sessionId={currentSessionId} 
+            autoJoin={autoJoin} 
+            isPip={value !== 0}
+            onPipClick={() => handleTabChange(0)}
+        />
         {value === 1 && <ReminderList role="student" />}
         {value === 3 && <ReelsFeed key={feedKey} />}
         {value === 4 && <StudentClassesView />}

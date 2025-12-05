@@ -23,6 +23,7 @@ export async function GET() {
       data: { type: 'test', timestamp: new Date().toISOString() },
     });
 
+    console.log(result,'resultresultresult')
     return NextResponse.json({
       success: true,
       message: 'Notification sent successfully',

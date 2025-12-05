@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
+import { createClient } from '@/lib/supabase/client';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const useLiveStream = (role: 'admin' | 'student', channelName: string = 'room-1', userName: string = 'User', enabled: boolean = true) => {
   const [peerId, setPeerId] = useState<string>('');
@@ -10,10 +11,13 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
   const [connectedCount, setConnectedCount] = useState(0);
   const [chatMessages, setChatMessages] = useState<{ user: string, text: string }[]>([]);
 
+  const [remoteUsers, setRemoteUsers] = useState<Record<string, string>>({});
+
   const peerRef = useRef<any>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const connectionsRef = useRef<Set<string>>(new Set());
   const streamRef = useRef<MediaStream | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     if (!enabled) return;
@@ -55,18 +59,7 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
           console.error('Failed to get local stream', err);
         }
 
-        // 2. Initialize Socket.IO
-        await fetch('/api/socket'); // Ensure socket server is ready (optional if running separate server)
-        const socket = io({
-          path: '/socket.io', // Default path
-        });
-        socketRef.current = socket;
-
-        socket.on('connect', () => {
-          console.log('Socket connected:', socket.id);
-        });
-
-        // 3. Initialize PeerJS
+        // 2. Initialize PeerJS
         const PeerModule = await import('peerjs');
         const Peer = PeerModule.default || PeerModule;
 
@@ -85,13 +78,76 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
         currentPeer = peer;
         peerRef.current = peer;
 
-        peer.on('open', (id: string) => {
+        peer.on('open', async (id: string) => {
           if (!mounted) return;
           console.log('PeerJS connected with ID:', id);
           setPeerId(id);
 
-          // Join the room via Socket.IO
-          socket.emit('join-room', channelName, id, userName);
+          // 3. Initialize Supabase Realtime
+          const channel = supabase.channel(channelName, {
+            config: {
+              presence: {
+                key: id,
+              },
+            },
+          });
+          channelRef.current = channel;
+
+          channel
+            .on('presence', { event: 'sync' }, () => {
+              const state = channel.presenceState();
+              console.log('Presence sync:', state);
+
+              const users: any[] = [];
+              const userMap: Record<string, string> = {};
+
+              for (const key in state) {
+                if (key !== id) { // Exclude self
+                  const userData = state[key][0] as any;
+                  users.push(userData);
+                  if (userData.peerId && userData.userName) {
+                    userMap[userData.peerId] = userData.userName;
+                  }
+                }
+              }
+
+              setConnectedCount(users.length + 1);
+              setRemoteUsers(userMap);
+
+              // Connect to existing users
+              users.forEach((user: any) => {
+                if (user.peerId) {
+                  connectToPeer(user.peerId, streamRef.current);
+                }
+              });
+            })
+            .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+              console.log('User joined:', key, newPresences);
+              setConnectedCount(prev => prev + 1);
+              // Update remote users map
+              const userData = newPresences[0] as any;
+              if (userData.peerId && userData.userName) {
+                setRemoteUsers(prev => ({ ...prev, [userData.peerId]: userData.userName }));
+              }
+            })
+            .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+              console.log('User left:', key);
+              // We might not know the peerId here easily without iterating, but sync usually follows
+              // However, we can handle disconnects
+              setConnectedCount(prev => Math.max(0, prev - 1));
+            })
+            .on('broadcast', { event: 'message' }, ({ payload }) => {
+              setChatMessages(prev => [...prev, payload]);
+            })
+            .subscribe(async (status) => {
+              if (status === 'SUBSCRIBED') {
+                console.log('Supabase channel subscribed');
+                await channel.track({
+                  peerId: id,
+                  userName
+                });
+              }
+            });
         });
 
         peer.on('error', (err: any) => {
@@ -117,32 +173,6 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
           connectionsRef.current.add(call.peer);
         });
 
-        // 5. Socket Events
-        socket.on('existing-users', (users: { userId: string, userName: string }[]) => {
-          console.log('Existing users:', users);
-          setConnectedCount(users.length + 1); // +1 for self
-
-          users.forEach(user => {
-            connectToPeer(user.userId, streamRef.current);
-          });
-        });
-
-        socket.on('user-connected', (userId: string, uName: string) => {
-          console.log(`User connected: ${userId} (${uName})`);
-          setConnectedCount(prev => prev + 1);
-          // We don't call them, they call us.
-        });
-
-        socket.on('user-disconnected', (userId: string) => {
-          console.log(`User disconnected: ${userId}`);
-          handlePeerDisconnect(userId);
-          setConnectedCount(prev => Math.max(0, prev - 1));
-        });
-
-        socket.on('receive-message', (message: { user: string, text: string }) => {
-          setChatMessages(prev => [...prev, message]);
-        });
-
       } catch (err) {
         console.error('Failed to initialize:', err);
       }
@@ -152,15 +182,6 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
       if (!peerRef.current || connectionsRef.current.has(targetPeerId)) return;
 
       console.log(`Calling peer ${targetPeerId}...`);
-
-      if (!stream) {
-        console.warn(`⚠️ Attempting to call peer ${targetPeerId} without local stream!`);
-      }
-
-      // If no stream, create dummy? PeerJS needs a stream for .call usually?
-      // Actually .call(id, stream) - stream is optional in some versions but usually required for video call.
-      // If we don't have a stream (e.g. camera denied), we should probably send a dummy track or just data.
-      // For now assume stream exists or is null.
 
       const callObj = peerRef.current.call(targetPeerId, stream);
       connectionsRef.current.add(targetPeerId);
@@ -187,6 +208,11 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
         delete newStreams[peerId];
         return newStreams;
       });
+      setRemoteUsers(prev => {
+        const newUsers = { ...prev };
+        delete newUsers[peerId];
+        return newUsers;
+      });
       connectionsRef.current.delete(peerId);
     };
 
@@ -196,37 +222,38 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
       mounted = false;
       console.log('Cleaning up useLiveStream...');
       if (currentPeer) currentPeer.destroy();
-      if (socketRef.current) socketRef.current.disconnect();
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       connectionsRef.current.clear();
       setRemoteStreams({});
+      setRemoteUsers({});
       setConnectedCount(0);
       setIsConnected(false);
     };
   }, [role, channelName, userName, enabled]);
 
   const sendChatMessage = (text: string) => {
-    if (!socketRef.current) return;
+    if (!channelRef.current) return;
 
     const message = {
       user: userName,
       text
     };
 
-    // Optimistic update? Or wait for server echo?
-    // Server echoes to everyone including sender usually, or we can append locally.
-    // In server.js I did `io.to(roomId).emit`, which sends to everyone.
-    // So we don't need to append locally if we listen to it.
-    // But to be responsive, we might want to.
-    // However, if we append locally AND listen, we get duplicates.
-    // Let's rely on server echo for consistency.
+    // Send to others
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'message',
+      payload: message
+    });
 
-    socketRef.current.emit('send-message', message);
+    // Add locally
+    setChatMessages(prev => [...prev, message]);
   };
 
   const remoteStream = Object.values(remoteStreams)[0] || null;
 
-  return { localStream, remoteStream, remoteStreams, isConnected, chatMessages, sendChatMessage, connectedCount };
+  return { localStream, remoteStream, remoteStreams, remoteUsers, isConnected, chatMessages, sendChatMessage, connectedCount };
 };

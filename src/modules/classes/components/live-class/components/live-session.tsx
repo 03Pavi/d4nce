@@ -37,6 +37,7 @@ interface LiveSessionProps {
 	sessionId?: string;
 	isPip?: boolean;
 	autoJoin?: boolean;
+	onPipClick?: () => void;
 }
 
 export const LiveSession = ({
@@ -46,6 +47,7 @@ export const LiveSession = ({
 	sessionId = "class-1",
 	isPip = false,
 	autoJoin = false,
+	onPipClick,
 }: LiveSessionProps) => {
 	const [userName, setUserName] = useState<string>(
 		role === "admin" ? "Instructor" : "Student"
@@ -90,6 +92,7 @@ export const LiveSession = ({
 	const {
 		localStream,
 		remoteStreams,
+		remoteUsers,
 		isConnected,
 		chatMessages,
 		sendChatMessage,
@@ -399,6 +402,7 @@ export const LiveSession = ({
 			<Box
 				ref={pipRef}
 				onMouseDown={handlePipMouseDown}
+				onClick={onPipClick}
 				sx={{
 					position: "fixed",
 					left: `${pipPosition.x}px`,
@@ -411,7 +415,7 @@ export const LiveSession = ({
 					zIndex: 9999,
 					boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
 					border: "1px solid rgba(255,255,255,0.1)",
-					cursor: isDragging ? "grabbing" : "grab",
+					cursor: isDragging ? "grabbing" : "pointer",
 					transition: isDragging ? "none" : "box-shadow 0.2s",
 					"&:hover": { boxShadow: "0 6px 24px rgba(255,0,85,0.4)" },
 				}}
@@ -707,6 +711,7 @@ export const LiveSession = ({
 				onClose={() => setShowGrid(false)}
 				localStream={localStream}
 				remoteStreams={remoteStreams}
+				remoteUsers={remoteUsers}
 				pinnedStreamId={pinnedStreamId}
 				onPinStream={setPinnedStreamId}
 			/>

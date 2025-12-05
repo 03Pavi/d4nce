@@ -19,6 +19,7 @@ interface Reminder {
     title: string;
     scheduled_time: string; // ISO string from DB
     for_group: string;
+    created_at?: string;
 }
 
 interface ReminderListProps {
@@ -247,6 +248,18 @@ export const ReminderList = ({ role }: ReminderListProps) => {
         await fetchCallInvites();
     };
 
+    // Filter logic
+    const isNew = (dateString?: string) => {
+        if (!dateString) return false;
+        return dayjs(dateString).isAfter(dayjs().subtract(24, 'hour'));
+    };
+
+    const newReminders = reminders.filter(r => isNew(r.created_at));
+    const oldReminders = reminders.filter(r => !isNew(r.created_at));
+
+    const hasNew = callInvites.length > 0 || newReminders.length > 0;
+    const hasOld = oldReminders.length > 0;
+
     return (
         <LocalizationProvider dateAdapter={AdapterDayjs}>
             <Box sx={{ 
@@ -332,93 +345,8 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                 {/* Scrollable List Section */}
                 <Box sx={{ flex: 1, overflowY: 'auto' }}>
                         <Container maxWidth="lg" sx={{ pb: 4 }}>
-                            {/* Call Invites Section */}
-                            {callInvites.length > 0 && (
-                                <Box sx={{ mb: 4 }}>
-                                    <Typography variant="h6" sx={{ color: 'white', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Videocam sx={{ color: '#ff0055' }} />
-                                        Pending Video Calls
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                        {callInvites.map((invite) => (
-                                            <Fade in={true} key={invite.id}>
-                                                <Card sx={{ 
-                                                    bgcolor: 'rgba(255,0,85,0.1)', 
-                                                    border: '1px solid #ff0055',
-                                                    boxShadow: '0 0 20px rgba(255,0,85,0.2)'
-                                                }}>
-                                                    <CardContent sx={{ 
-                                                        display: 'flex', 
-                                                        flexDirection: { xs: 'column', sm: 'row' },
-                                                        alignItems: { xs: 'stretch', sm: 'center' }, 
-                                                        justifyContent: 'space-between', 
-                                                        p: 2, 
-                                                        gap: { xs: 2, sm: 0 },
-                                                        '&:last-child': { pb: 2 } 
-                                                    }}>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                            <Box sx={{ position: 'relative' }}>
-                                                                <img 
-                                                                    src={invite.profiles.avatar_url || '/default-avatar.png'} 
-                                                                    alt={invite.profiles.full_name}
-                                                                    style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} 
-                                                                />
-                                                                <Box sx={{ 
-                                                                    position: 'absolute', 
-                                                                    bottom: 0, 
-                                                                    right: 0, 
-                                                                    width: 12, 
-                                                                    height: 12, 
-                                                                    bgcolor: '#4caf50', 
-                                                                    borderRadius: '50%', 
-                                                                    border: '2px solid black' 
-                                                                }} />
-                                                            </Box>
-                                                            <Box>
-                                                                <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'white' }}>
-                                                                    {invite.profiles.full_name}
-                                                                </Typography>
-                                                                <Typography variant="body2" sx={{ color: '#ccc' }}>
-                                                                    Invited you to a call in <span style={{ color: '#ff0055' }}>{invite.communities.name}</span>
-                                                                </Typography>
-                                                                <Typography variant="caption" sx={{ color: '#888' }}>
-                                                                    {dayjs(invite.created_at).fromNow()}
-                                                                </Typography>
-                                                            </Box>
-                                                        </Box>
-                                                        <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-end', sm: 'flex-start' } }}>
-                                                            <Button 
-                                                                variant="outlined" 
-                                                                color="error" 
-                                                                size="small"
-                                                                startIcon={<Close />}
-                                                                onClick={() => handleRejectCall(invite.id)}
-                                                                sx={{ flex: { xs: 1, sm: 'none' } }}
-                                                            >
-                                                                Reject
-                                                            </Button>
-                                                            <Button 
-                                                                variant="contained" 
-                                                                color="success" 
-                                                                size="small"
-                                                                startIcon={<Check />}
-                                                                onClick={() => handleAcceptCall(invite)}
-                                                                sx={{ bgcolor: '#00e676', '&:hover': { bgcolor: '#00c853' }, flex: { xs: 1, sm: 'none' } }}
-                                                            >
-                                                                Accept
-                                                            </Button>
-                                                        </Box>
-                                                    </CardContent>
-                                                </Card>
-                                            </Fade>
-                                        ))}
-                                    </Box>
-                                </Box>
-                            )}
-
-                            {/* Reminders List */}
                             {loading ? (
-                                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress color="secondary" /></Box>
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress  /></Box>
                             ) : reminders.length === 0 && callInvites.length === 0 ? (
                                 <Fade in={true}>
                                     <Card sx={{ 
@@ -454,81 +382,251 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                     </Card>
                                 </Fade>
                             ) : (
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                    {reminders.map((reminder, index) => (
-                                        <Fade in={true} key={reminder.id} timeout={300 + index * 100}>
-                                            <Card sx={{ 
-                                                bgcolor: 'rgba(255,255,255,0.03)', 
-                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                borderLeft: '4px solid #00e5ff',
-                                                transition: 'all 0.3s ease',
-                                                '&:hover': {
-                                                    bgcolor: 'rgba(255,255,255,0.05)',
-                                                    transform: 'translateY(-2px)',
-                                                    boxShadow: '0 8px 24px rgba(0,229,255,0.15)'
-                                                }
-                                            }}>
-                                                <CardContent sx={{ p: { xs: 1.5, sm: 2.5 } }}>
-                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, sm: 2 } }}>
-                                                        <Box sx={{ 
-                                                            bgcolor: 'rgba(0,229,255,0.15)', 
-                                                            borderRadius: 2, 
-                                                            p: { xs: 1, sm: 1.5 },
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center'
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    
+                                    {/* NEW SECTION */}
+                                    {hasNew && (
+                                        <Box>
+                                            <Typography variant="h6" sx={{ color: '#ff0055', mb: 2, fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: 1 }}>
+                                                New
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                {/* Call Invites */}
+                                                {callInvites.map((invite) => (
+                                                    <Fade in={true} key={invite.id}>
+                                                        <Card sx={{ 
+                                                            bgcolor: 'rgba(255,0,85,0.1)', 
+                                                            border: '1px solid #ff0055',
+                                                            boxShadow: '0 0 20px rgba(255,0,85,0.2)'
                                                         }}>
-                                                            <Alarm sx={{ color: '#00e5ff', fontSize: { xs: 24, sm: 28 } }} />
-                                                        </Box>
-
-                                                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                            <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5, color: 'white' }}>
-                                                                {reminder.title}
-                                                            </Typography>
-                                                            
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                                    <AccessTime sx={{ fontSize: 18, color: '#888' }} />
-                                                                    <Typography variant="body2" sx={{ color: '#aaa' }}>
-                                                                        {dayjs(reminder.scheduled_time).format('MMM D, YYYY h:mm A')}
-                                                                    </Typography>
+                                                            <CardContent sx={{ 
+                                                                display: 'flex', 
+                                                                flexDirection: { xs: 'column', sm: 'row' },
+                                                                alignItems: { xs: 'stretch', sm: 'center' }, 
+                                                                justifyContent: 'space-between', 
+                                                                p: 2, 
+                                                                gap: { xs: 2, sm: 0 },
+                                                                '&:last-child': { pb: 2 } 
+                                                            }}>
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                                    <Box sx={{ position: 'relative' }}>
+                                                                        <img 
+                                                                            src={invite.profiles.avatar_url || '/default-avatar.png'} 
+                                                                            alt={invite.profiles.full_name}
+                                                                            style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} 
+                                                                        />
+                                                                        <Box sx={{ 
+                                                                            position: 'absolute', 
+                                                                            bottom: 0, 
+                                                                            right: 0, 
+                                                                            width: 12, 
+                                                                            height: 12, 
+                                                                            bgcolor: '#4caf50', 
+                                                                            borderRadius: '50%', 
+                                                                            border: '2px solid black' 
+                                                                        }} />
+                                                                    </Box>
+                                                                    <Box>
+                                                                        <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'white' }}>
+                                                                            {invite.profiles.full_name}
+                                                                        </Typography>
+                                                                        <Typography variant="body2" sx={{ color: '#ccc' }}>
+                                                                            Invited you to a call in <span style={{ color: '#ff0055' }}>{invite.communities.name}</span>
+                                                                        </Typography>
+                                                                        <Typography variant="caption" sx={{ color: '#888' }}>
+                                                                            {dayjs(invite.created_at).fromNow()}
+                                                                        </Typography>
+                                                                    </Box>
                                                                 </Box>
-                                                                
-                                                                {reminder.for_group && (
-                                                                    <Chip 
-                                                                        icon={<Group sx={{ fontSize: 16 }} />}
-                                                                        label={reminder.for_group}
+                                                                <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-end', sm: 'flex-start' } }}>
+                                                                    <Button 
+                                                                        variant="outlined" 
+                                                                        color="error" 
                                                                         size="small"
-                                                                        sx={{ 
-                                                                            bgcolor: 'rgba(255,0,85,0.15)',
-                                                                            color: '#ff0055',
-                                                                            border: '1px solid rgba(255,0,85,0.3)',
-                                                                            height: 24
-                                                                        }}
-                                                                    />
-                                                                )}
-                                                            </Box>
-                                                        </Box>
+                                                                        startIcon={<Close />}
+                                                                        onClick={() => handleRejectCall(invite.id)}
+                                                                        sx={{ flex: { xs: 1, sm: 'none' } }}
+                                                                    >
+                                                                        Reject
+                                                                    </Button>
+                                                                    <Button 
+                                                                        variant="contained" 
+                                                                        color="success" 
+                                                                        size="small"
+                                                                        startIcon={<Check />}
+                                                                        onClick={() => handleAcceptCall(invite)}
+                                                                        sx={{ bgcolor: '#00e676', '&:hover': { bgcolor: '#00c853' }, flex: { xs: 1, sm: 'none' } }}
+                                                                    >
+                                                                        Accept
+                                                                    </Button>
+                                                                </Box>
+                                                            </CardContent>
+                                                        </Card>
+                                                    </Fade>
+                                                ))}
 
-                                                        {role === 'admin' && (
-                                                            <IconButton 
-                                                                onClick={() => handleDeleteClick(reminder.id)} 
-                                                                sx={{ 
-                                                                    color: '#666',
-                                                                    '&:hover': { 
-                                                                        color: '#ff0055',
-                                                                        bgcolor: 'rgba(255,0,85,0.1)'
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <Delete />
-                                                            </IconButton>
-                                                        )}
-                                                    </Box>
-                                                </CardContent>
-                                            </Card>
-                                        </Fade>
-                                    ))}
+                                                {/* New Reminders */}
+                                                {newReminders.map((reminder, index) => (
+                                                    <Fade in={true} key={reminder.id} timeout={300 + index * 100}>
+                                                        <Card sx={{ 
+                                                            bgcolor: 'rgba(255,255,255,0.03)', 
+                                                            border: '1px solid rgba(255,255,255,0.1)',
+                                                            borderLeft: '4px solid #00e5ff',
+                                                            transition: 'all 0.3s ease',
+                                                            '&:hover': {
+                                                                bgcolor: 'rgba(255,255,255,0.05)',
+                                                                transform: 'translateY(-2px)',
+                                                                boxShadow: '0 8px 24px rgba(0,229,255,0.15)'
+                                                            }
+                                                        }}>
+                                                            <CardContent sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+                                                                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, sm: 2 } }}>
+                                                                    <Box sx={{ 
+                                                                        bgcolor: 'rgba(0,229,255,0.15)', 
+                                                                        borderRadius: 2, 
+                                                                        p: { xs: 1, sm: 1.5 },
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center'
+                                                                    }}>
+                                                                        <Alarm sx={{ color: '#00e5ff', fontSize: { xs: 24, sm: 28 } }} />
+                                                                    </Box>
+
+                                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5, color: 'white' }}>
+                                                                            {reminder.title}
+                                                                        </Typography>
+                                                                        
+                                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                                                <AccessTime sx={{ fontSize: 18, color: '#888' }} />
+                                                                                <Typography variant="body2" sx={{ color: '#aaa' }}>
+                                                                                    {dayjs(reminder.scheduled_time).format('MMM D, YYYY h:mm A')}
+                                                                                </Typography>
+                                                                            </Box>
+                                                                            
+                                                                            {reminder.for_group && (
+                                                                                <Chip 
+                                                                                    icon={<Group sx={{ fontSize: 16 }} />}
+                                                                                    label={reminder.for_group}
+                                                                                    size="small"
+                                                                                    sx={{ 
+                                                                                        bgcolor: 'rgba(255,0,85,0.15)',
+                                                                                        color: '#ff0055',
+                                                                                        border: '1px solid rgba(255,0,85,0.3)',
+                                                                                        height: 24
+                                                                                    }}
+                                                                                />
+                                                                            )}
+                                                                        </Box>
+                                                                    </Box>
+
+                                                                    {role === 'admin' && (
+                                                                        <IconButton 
+                                                                            onClick={() => handleDeleteClick(reminder.id)} 
+                                                                            sx={{ 
+                                                                                color: '#666',
+                                                                                '&:hover': { 
+                                                                                    color: '#ff0055',
+                                                                                    bgcolor: 'rgba(255,0,85,0.1)'
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Delete />
+                                                                        </IconButton>
+                                                                    )}
+                                                                </Box>
+                                                            </CardContent>
+                                                        </Card>
+                                                    </Fade>
+                                                ))}
+                                            </Box>
+                                        </Box>
+                                    )}
+
+                                    {/* OLD SECTION */}
+                                    {hasOld && (
+                                        <Box>
+                                            <Typography variant="h6" sx={{ color: '#888', mb: 2, fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: 1 }}>
+                                                Earlier
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                {oldReminders.map((reminder, index) => (
+                                                    <Fade in={true} key={reminder.id} timeout={300 + index * 100}>
+                                                        <Card sx={{ 
+                                                            bgcolor: 'rgba(255,255,255,0.02)', 
+                                                            border: '1px solid rgba(255,255,255,0.05)',
+                                                            transition: 'all 0.3s ease',
+                                                            opacity: 0.8,
+                                                            '&:hover': {
+                                                                bgcolor: 'rgba(255,255,255,0.05)',
+                                                                opacity: 1
+                                                            }
+                                                        }}>
+                                                            <CardContent sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+                                                                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, sm: 2 } }}>
+                                                                    <Box sx={{ 
+                                                                        bgcolor: 'rgba(255,255,255,0.05)', 
+                                                                        borderRadius: 2, 
+                                                                        p: { xs: 1, sm: 1.5 },
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center'
+                                                                    }}>
+                                                                        <Alarm sx={{ color: '#666', fontSize: { xs: 24, sm: 28 } }} />
+                                                                    </Box>
+
+                                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 0.5, color: '#ccc' }}>
+                                                                            {reminder.title}
+                                                                        </Typography>
+                                                                        
+                                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                                                <AccessTime sx={{ fontSize: 18, color: '#666' }} />
+                                                                                <Typography variant="body2" sx={{ color: '#888' }}>
+                                                                                    {dayjs(reminder.scheduled_time).format('MMM D, YYYY h:mm A')}
+                                                                                </Typography>
+                                                                            </Box>
+                                                                            
+                                                                            {reminder.for_group && (
+                                                                                <Chip 
+                                                                                    icon={<Group sx={{ fontSize: 16 }} />}
+                                                                                    label={reminder.for_group}
+                                                                                    size="small"
+                                                                                    sx={{ 
+                                                                                        bgcolor: 'rgba(255,255,255,0.05)',
+                                                                                        color: '#888',
+                                                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                                                        height: 24
+                                                                                    }}
+                                                                                />
+                                                                            )}
+                                                                        </Box>
+                                                                    </Box>
+
+                                                                    {role === 'admin' && (
+                                                                        <IconButton 
+                                                                            onClick={() => handleDeleteClick(reminder.id)} 
+                                                                            sx={{ 
+                                                                                color: '#666',
+                                                                                '&:hover': { 
+                                                                                    color: '#ff0055',
+                                                                                    bgcolor: 'rgba(255,0,85,0.1)'
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Delete />
+                                                                        </IconButton>
+                                                                    )}
+                                                                </Box>
+                                                            </CardContent>
+                                                        </Card>
+                                                    </Fade>
+                                                ))}
+                                            </Box>
+                                        </Box>
+                                    )}
                                 </Box>
                             )}
                         </Container>

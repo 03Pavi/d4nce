@@ -332,7 +332,7 @@ export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFe
   if (loading) {
     return (
       <Box sx={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'var(--background)' }}>
-        <CircularProgress color="secondary" />
+        <CircularProgress  />
       </Box>
     );
   }

@@ -1,6 +1,5 @@
 'use client'
 import React, { useState, useEffect } from 'react'
-import { io } from 'socket.io-client'
 import { Box, Typography, TextField, Button, Chip, Autocomplete, CircularProgress, List, ListItem, ListItemAvatar, Avatar, ListItemText, Divider, Paper, Grid, FormControlLabel, Switch, IconButton } from '@mui/material'
 import { createClient } from '@/lib/supabase/client'
 import { Save, Check, Close, Block, Delete, Chat, VideoCall } from '@mui/icons-material'
@@ -29,10 +28,6 @@ interface Member {
     email: string
   }
 }
-
-
-
-// ...
 
 export const CommunityManagement = () => {
   const router = useRouter()
@@ -151,22 +146,32 @@ export const CommunityManagement = () => {
 
       if (error) throw error
 
-      // 2. Emit Socket Event to notify users
-      const socket = io({ path: '/socket.io' })
-      
+      // 2. Emit Supabase Realtime Event to notify users
       // We need to fetch the caller's name to show in the notification
       const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', currentUserId).single()
       const callerName = profile?.full_name || 'Instructor'
 
-
-
-      socket.emit('initiate-call', {
-        roomId,
-        callerId: currentUserId,
-        callerName,
-        communityName: community.name,
-        receiverIds: selectedUserIds
-      })
+      // Send to each user's personal channel
+      for (const userId of selectedUserIds) {
+        const channel = supabase.channel(`user-${userId}`);
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            channel.send({
+              type: 'broadcast',
+              event: 'incoming-call',
+              payload: {
+                roomId,
+                callerId: currentUserId,
+                callerName,
+                communityName: community.name,
+                receiverIds: selectedUserIds
+              }
+            });
+            // Cleanup after a short delay
+            setTimeout(() => supabase.removeChannel(channel), 5000);
+          }
+        });
+      }
 
       // Send Push Notification
       await notifyCallInvite(callerName, community.name, selectedUserIds, roomId);
@@ -500,7 +505,7 @@ export const CommunityManagement = () => {
                             <Switch
                             checked={joinPolicy === 'approval_required'}
                             onChange={(e) => setJoinPolicy(e.target.checked ? 'approval_required' : 'open')}
-                            color="secondary"
+                            
                             />
                         }
                         label="Require Approval to Join"

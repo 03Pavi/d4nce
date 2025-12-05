@@ -12,10 +12,11 @@ import {
 	Chip,
 } from "@mui/material";
 import { Send, EmojiEmotions } from "@mui/icons-material";
-import { io, Socket } from "socket.io-client";
 import { messageDB, CommunityMessage } from "@/lib/message-db";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
+import { createClient } from "@/lib/supabase/client";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface CommunityChatProps {
 	communityId: string;
@@ -41,12 +42,13 @@ export const CommunityChat = ({
 		null
 	);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
-	const socketRef = useRef<Socket | null>(null);
+	const channelRef = useRef<RealtimeChannel | null>(null);
 	const unsyncedCountRef = useRef(0);
 	const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
 	const lastActivityRef = useRef<number>(Date.now());
 	const textFieldRef = useRef<HTMLInputElement>(null);
 	const router = useRouter();
+	const supabase = createClient();
 
 	useEffect(() => {
 		initChat();
@@ -76,8 +78,8 @@ export const CommunityChat = ({
 				"🚪 Component unmounting, keeping messages in IndexedDB (no server sync)"
 			);
 
-			if (socketRef.current) {
-				socketRef.current.disconnect();
+			if (channelRef.current) {
+				supabase.removeChannel(channelRef.current);
 			}
 			// Clear idle timer on unmount
 			if (idleTimerRef.current) {
@@ -131,81 +133,13 @@ export const CommunityChat = ({
 				`✅ Chat initialized with ${localMessages.length} messages from IndexedDB`
 			);
 
-			// Connect to Socket.IO
-			socketRef.current = io({ path: "/socket.io" });
+			// Connect to Supabase Realtime
+			const channel = supabase.channel(`community-${communityId}`);
+			channelRef.current = channel;
 
-			// Add connection event listeners for debugging
-			socketRef.current.on("connect", () => {
-				console.log("✅ Socket.IO connected:", socketRef.current?.id);
-			});
-
-			socketRef.current.on("connect_error", (error) => {
-				console.error("❌ Socket.IO connection error:", error);
-			});
-
-			socketRef.current.on("disconnect", (reason) => {
-				console.log("🔌 Socket.IO disconnected:", reason);
-			});
-
-			socketRef.current.emit("join-community-chat", {
-				communityId,
-				userId: currentUserId,
-			});
-			console.log(`📡 Joined community chat: ${communityId}`);
-
-			// Request message sync from other members when joining
-			socketRef.current.emit("request-message-sync", {
-				communityId,
-				userId: currentUserId,
-			});
-			console.log(`🔄 Requested message sync from community members`);
-
-			// Handle incoming sync request from other members
-			socketRef.current.on("request-message-sync", async (data: any) => {
-				console.log(`🔄 Received sync request from user ${data.userId}`);
-				const localMessages = await messageDB.getMessages(communityId);
-				if (localMessages.length > 0) {
-					socketRef.current?.emit("sync-messages", {
-						communityId,
-						userId: currentUserId,
-						messages: localMessages,
-					});
-					console.log(
-						`📤 Sent ${localMessages.length} messages to user ${data.userId}`
-					);
-				}
-			});
-
-			// Handle incoming messages from sync
-			socketRef.current.on("sync-messages", async (data: any) => {
-				console.log(
-					`📥 Received ${data.messages.length} synced messages from user ${data.userId}`
-				);
-				const syncedMessages = data.messages as CommunityMessage[];
-
-				// Merge synced messages into local IndexedDB
-				for (const msg of syncedMessages) {
-					try {
-						await messageDB.addMessage({ ...msg, synced: true });
-					} catch (err) {
-						console.warn(
-							`Message ${msg.id} already exists or failed to add:`,
-							err
-						);
-					}
-				}
-
-				// Update UI with merged messages
-				const updatedMessages = await messageDB.getMessages(communityId);
-				setMessages(updatedMessages);
-				console.log(
-					`✅ Synced messages merged. Total: ${updatedMessages.length}`
-				);
-			});
-
-			socketRef.current.on(
-				"new-community-message",
-				async (message: CommunityMessage) => {
+			channel
+				.on("broadcast", { event: "message" }, async ({ payload }) => {
+					const message = payload as CommunityMessage;
 					console.log("📨 Received new message:", message);
 
 					// Check if message already exists in state to prevent duplicates
@@ -226,8 +160,68 @@ export const CommunityChat = ({
 
 						return [...prev, message];
 					});
-				}
-			);
+				})
+				.on("broadcast", { event: "request-sync" }, async ({ payload }) => {
+					console.log(`🔄 Received sync request from user ${payload.userId}`);
+					const localMessages = await messageDB.getMessages(communityId);
+					if (localMessages.length > 0) {
+						channel.send({
+							type: "broadcast",
+							event: "sync-response",
+							payload: {
+								userId: currentUserId,
+								targetUserId: payload.userId, // Only for the requester (logic handled in listener)
+								messages: localMessages,
+							},
+						});
+						console.log(
+							`📤 Sent ${localMessages.length} messages to user ${payload.userId}`
+						);
+					}
+				})
+				.on("broadcast", { event: "sync-response" }, async ({ payload }) => {
+					// Only process if intended for us
+					if (payload.targetUserId !== currentUserId) return;
+
+					console.log(
+						`📥 Received ${payload.messages.length} synced messages from user ${payload.userId}`
+					);
+					const syncedMessages = payload.messages as CommunityMessage[];
+
+					// Merge synced messages into local IndexedDB
+					for (const msg of syncedMessages) {
+						try {
+							await messageDB.addMessage({ ...msg, synced: true });
+						} catch (err) {
+							console.warn(
+								`Message ${msg.id} already exists or failed to add:`,
+								err
+							);
+						}
+					}
+
+					// Update UI with merged messages
+					const updatedMessages = await messageDB.getMessages(communityId);
+					setMessages(updatedMessages);
+					console.log(
+						`✅ Synced messages merged. Total: ${updatedMessages.length}`
+					);
+				})
+				.subscribe((status) => {
+					if (status === "SUBSCRIBED") {
+						console.log(`📡 Joined community chat: ${communityId}`);
+						// Request message sync from other members when joining
+						channel.send({
+							type: "broadcast",
+							event: "request-sync",
+							payload: {
+								communityId,
+								userId: currentUserId,
+							},
+						});
+						console.log(`🔄 Requested message sync from community members`);
+					}
+				});
 
 			// Start idle timer
 			startIdleTimer();
@@ -269,19 +263,19 @@ export const CommunityChat = ({
 			await messageDB.addMessage(message);
 			setMessages((prev) => [...prev, message]);
 
-			// Emit via Socket.IO for real-time
-			if (socketRef.current) {
-				console.log("📤 Sending message via Socket.IO:", {
+			// Emit via Supabase Realtime
+			if (channelRef.current) {
+				console.log("📤 Sending message via Supabase:", {
 					communityId,
 					messageId: message.id,
-					connected: socketRef.current.connected,
 				});
-				socketRef.current.emit("send-community-message", {
-					communityId,
-					message,
+				channelRef.current.send({
+					type: "broadcast",
+					event: "message",
+					payload: message,
 				});
 			} else {
-				console.error("❌ Socket not connected, message not sent in real-time");
+				console.error("❌ Channel not connected, message not sent in real-time");
 			}
 
 			// Reset idle timer - will sync to Supabase if idle for 2 minutes

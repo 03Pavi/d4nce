@@ -17,11 +17,12 @@ interface LiveSessionGridProps {
     onClose: () => void;
     localStream: MediaStream | null;
     remoteStreams: Record<string, MediaStream>;
+    remoteUsers: Record<string, string>;
     pinnedStreamId: string | null;
     onPinStream: (id: string | null) => void;
 }
 
-export const LiveSessionGrid = ({ open, onClose, localStream, remoteStreams, pinnedStreamId, onPinStream }: LiveSessionGridProps) => {
+export const LiveSessionGrid = ({ open, onClose, localStream, remoteStreams, remoteUsers, pinnedStreamId, onPinStream }: LiveSessionGridProps) => {
     const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const isLongPress = useRef(false);
@@ -143,7 +144,9 @@ export const LiveSessionGrid = ({ open, onClose, localStream, remoteStreams, pin
                                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} 
                                 />
                                 <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 1, background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)' }}>
-                                    <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>User {peerId.slice(0, 4)}</Typography>
+                                    <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>
+                                        {remoteUsers[peerId] || `User ${peerId.slice(0, 4)}`}
+                                    </Typography>
                                 </Box>
                                 {pinnedStreamId === peerId && <PushPin sx={{ position: 'absolute', top: 8, right: 8, color: '#ff0055', fontSize: 20 }} />}
                             </Box>
