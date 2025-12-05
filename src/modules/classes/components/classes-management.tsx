@@ -90,10 +90,10 @@ export const ClassesManagement = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Box>
                   <Typography variant="h5" fontWeight="bold" sx={{ mb: 0.5 }}>
-                    Classes Management
+                    Personal Tribe
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#888' }}>
-                    Create and manage dance classes
+                    Create and manage personal tribe
                   </Typography>
                 </Box>
                 <Button 
@@ -111,7 +111,7 @@ export const ClassesManagement = () => {
                     }
                   }}
                 >
-                  <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>New Class</Box>
+                  <Box component="span" sx={{ display: { xs: 'none', sm: 'block' } }}>New Tribe</Box>
                 </Button>
               </Box>
             </Box>
@@ -136,10 +136,10 @@ export const ClassesManagement = () => {
                       <CardContent>
                         <School sx={{ fontSize: 64, color: '#333', mb: 2 }} />
                         <Typography variant="h6" sx={{ color: '#666', mb: 1 }}>
-                          No Classes Yet
+                          No Tribes Yet
                         </Typography>
                         <Typography variant="body2" sx={{ color: '#444', mb: 3 }}>
-                          Create your first class to get started
+                          Create your first tribe to get started
                         </Typography>
                         <Button 
                           variant="outlined" 
@@ -151,7 +151,7 @@ export const ClassesManagement = () => {
                             '&:hover': { borderColor: '#cc0044', bgcolor: 'rgba(255,0,85,0.1)' }
                           }}
                         >
-                          Create Class
+                          Create tribe
                         </Button>
                       </CardContent>
                     </Card>
@@ -222,7 +222,7 @@ export const ClassesManagement = () => {
         <ConfirmDialog 
             open={confirmOpen} 
             title="Delete Class" 
-            message="Are you sure you want to delete this class?" 
+            message="Are you sure you want to delete this tribe?" 
             onConfirm={handleConfirmDelete} 
             onCancel={() => setConfirmOpen(false)} 
         />

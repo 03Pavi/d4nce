@@ -48,12 +48,57 @@ class MessageDB {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([MESSAGES_STORE], 'readwrite');
       const store = transaction.objectStore(MESSAGES_STORE);
-      const request = store.add(message);
+      // Use put() instead of add() to handle duplicates gracefully
+      const request = store.put(message);
 
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
   }
+
+  async addMessages(messages: CommunityMessage[]): Promise<void> {
+    if (!this.db) await this.init();
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([MESSAGES_STORE], 'readwrite');
+      const store = transaction.objectStore(MESSAGES_STORE);
+
+      let completed = 0;
+      let hasError = false;
+
+      messages.forEach(message => {
+        // Use put() instead of add() to handle duplicates gracefully
+        const request = store.put(message);
+
+        request.onsuccess = () => {
+          completed++;
+          if (completed === messages.length && !hasError) {
+            resolve();
+          }
+        };
+
+        request.onerror = () => {
+          if (!hasError) {
+            hasError = true;
+            reject(request.error);
+          }
+        };
+      });
+
+      // Handle empty array case
+      if (messages.length === 0) {
+        resolve();
+      }
+
+      transaction.onerror = () => {
+        if (!hasError) {
+          hasError = true;
+          reject(transaction.error);
+        }
+      };
+    });
+  }
+
 
   async getMessages(communityId: string): Promise<CommunityMessage[]> {
     if (!this.db) await this.init();
@@ -137,6 +182,37 @@ class MessageDB {
       };
       request.onerror = () => reject(request.error);
     });
+  }
+
+  // Reconcile messages: fetch from server and merge with local IndexedDB
+  async reconcileMessages(communityId: string, serverMessages: CommunityMessage[]): Promise<CommunityMessage[]> {
+    if (!this.db) await this.init();
+
+    // Get existing local messages
+    const localMessages = await this.getMessages(communityId);
+    const localIds = new Set(localMessages.map(m => m.id));
+
+    // Find messages in server that are not in local
+    const missingMessages = serverMessages.filter(msg => !localIds.has(msg.id));
+
+    if (missingMessages.length > 0) {
+      console.log(`🔄 Reconciling ${missingMessages.length} missing messages to IndexedDB`);
+      // Add missing messages to IndexedDB
+      await this.addMessages(missingMessages.map(msg => ({ ...msg, synced: true })));
+    }
+
+    // Return all messages sorted by creation time
+    const allMessages = [...localMessages, ...missingMessages].sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    return allMessages;
+  }
+
+  // Get message IDs for a community
+  async getMessageIds(communityId: string): Promise<Set<string>> {
+    const messages = await this.getMessages(communityId);
+    return new Set(messages.map(m => m.id));
   }
 }
 
