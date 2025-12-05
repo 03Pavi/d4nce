@@ -89,7 +89,6 @@ export const IncomingCallListener = () => {
 
 	useEffect(() => {
 		let currentChannel: RealtimeChannel | null = null;
-		let pollInterval: NodeJS.Timeout;
 
 		const checkPendingCalls = async () => {
 			try {
@@ -156,6 +155,16 @@ export const IncomingCallListener = () => {
 					OneSignal.Notifications.addEventListener("foregroundWillDisplay", (event: any) => {
 						const notification = event.notification;
 						console.log("🔔 Foreground notification received:", notification);
+						
+						if (notification.additionalData?.type === "call_invite") {
+							checkPendingCalls();
+						}
+					});
+
+					// Handle notification clicks (Background/Closed)
+					OneSignal.Notifications.addEventListener("click", (event: any) => {
+						const notification = event.notification;
+						console.log("🔔 Notification clicked:", notification);
 						
 						if (notification.additionalData?.type === "call_invite") {
 							checkPendingCalls();
@@ -259,8 +268,7 @@ export const IncomingCallListener = () => {
 			// Initial check
 			checkPendingCalls();
 			
-			// Poll every 3 seconds to ensure we don't miss calls
-			pollInterval = setInterval(checkPendingCalls, 3000);
+			// Poll removed in favor of Realtime
 		};
 
 		setupListener();
@@ -268,9 +276,6 @@ export const IncomingCallListener = () => {
 		return () => {
 			if (currentChannel) {
 				supabase.removeChannel(currentChannel);
-			}
-			if (pollInterval) {
-				clearInterval(pollInterval);
 			}
 		};
 	}, []);

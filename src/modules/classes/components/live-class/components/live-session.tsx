@@ -425,7 +425,12 @@ export const LiveSession = ({
 					autoPlay
 					playsInline
 					muted={mainStream === localStream}
-					style={{ width: "100%", height: "100%", objectFit: "cover" }}
+					style={{ 
+						width: "100%", 
+						height: "100%", 
+						objectFit: "cover",
+						transform: mainStream === localStream ? "scaleX(-1)" : "none" 
+					}}
 				/>
 				<Box sx={{ position: "absolute", top: 4, left: 4 }}>
 					<Chip
@@ -481,7 +486,12 @@ export const LiveSession = ({
 									autoPlay
 									playsInline
 									muted={mainStream === localStream} // Mute self
-									style={{ width: "100%", height: "100%", objectFit: "cover" }}
+									style={{ 
+										width: "100%", 
+										height: "100%", 
+										objectFit: "cover",
+										transform: mainStream === localStream ? "scaleX(-1)" : "none"
+									}}
 								/>
 								{!mainStream && (
 									<Box

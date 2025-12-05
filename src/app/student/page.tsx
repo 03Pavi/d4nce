@@ -44,6 +44,18 @@ const StudentPage = () => {
     };
     
     fetchNotifications();
+    
+    // Capture install prompt
+    const handleBeforeInstallPrompt = (e: any) => {
+        e.preventDefault();
+        // @ts-ignore
+        window.deferredPrompt = e;
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
   useEffect(() => {
@@ -294,6 +306,31 @@ const StudentPage = () => {
                       {isPending ? <CircularProgress size={20} /> : <Logout fontSize="small" />}
                     </ListItemIcon>
                     <ListItemText primary="Logout" />
+                </ListItemButton>
+            </ListItem>
+            <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => {
+                    // @ts-ignore
+                    if (window.deferredPrompt) {
+                        // @ts-ignore
+                        window.deferredPrompt.prompt();
+                        // @ts-ignore
+                        window.deferredPrompt.userChoice.then((choiceResult) => {
+                            if (choiceResult.outcome === 'accepted') {
+                                console.log('User accepted the install prompt');
+                            } else {
+                                console.log('User dismissed the install prompt');
+                            }
+                            // @ts-ignore
+                            window.deferredPrompt = null;
+                        });
+                    } else {
+                        alert('App is already installed or not supported in this browser.');
+                    }
+                }}>
+                    <ListItemIcon sx={{ color: '#ff0055' }}><AddCircle /></ListItemIcon>
+                    <ListItemText primary="Install App" sx={{ color: '#ff0055' }} />
                 </ListItemButton>
             </ListItem>
         </List>
