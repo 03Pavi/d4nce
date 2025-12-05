@@ -30,6 +30,7 @@ export const CommunitiesList = () => {
   const [viewTab, setViewTab] = useState(0)
   const [callDialogOpen, setCallDialogOpen] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [userProfile, setUserProfile] = useState<any>(null)
   
   const supabase = createClient()
 
@@ -40,38 +41,16 @@ export const CommunitiesList = () => {
   const fetchCommunities = async () => {
     try {
       setLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
+      const res = await fetch('/api/communities');
+      if (!res.ok) throw new Error('Failed to fetch communities');
       
-      // Fetch all communities
-      const { data: communitiesData, error } = await supabase
-        .from('communities')
-        .select('*')
+      const data = await res.json();
       
-      if (error) throw error
-
-      if (communitiesData) {
-        setCommunities(communitiesData)
-      }
+      setCommunities(data.communities || []);
+      setMembershipStatus(data.membershipStatus || {});
+      setCurrentUserId(data.userId);
+      setUserProfile(data.userProfile);
       
-      if (user) {
-        setCurrentUserId(user.id)
-      }
-
-      // Fetch joined communities
-      if (user) {
-        const { data: joinedData } = await supabase
-          .from('community_members')
-          .select('community_id, status')
-          .eq('user_id', user.id)
-        
-        if (joinedData) {
-          const statusMap: Record<string, 'pending' | 'approved' | 'rejected'> = {}
-          joinedData.forEach(d => {
-            statusMap[d.community_id] = d.status as 'pending' | 'approved' | 'rejected'
-          })
-          setMembershipStatus(statusMap)
-        }
-      }
     } catch (error) {
       console.error('Error fetching communities:', error)
     } finally {
@@ -82,20 +61,17 @@ export const CommunitiesList = () => {
   const handleJoin = async (community: Community, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!currentUserId) return
 
       const status = community.join_policy === 'approval_required' ? 'pending' : 'approved'
 
-      const { error } = await supabase
-        .from('community_members')
-        .insert({ 
-            community_id: community.id, 
-            user_id: user.id,
-            status: status
-        })
+      const res = await fetch('/api/communities/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ communityId: community.id, joinPolicy: community.join_policy })
+      });
 
-      if (!error) {
+      if (res.ok) {
         setMembershipStatus(prev => ({ ...prev, [community.id]: status }))
         if (status === 'pending') {
             alert('Request sent! Waiting for approval.')
@@ -109,16 +85,13 @@ export const CommunitiesList = () => {
   const handleLeave = async (communityId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!currentUserId) return
 
-      const { error } = await supabase
-        .from('community_members')
-        .delete()
-        .eq('community_id', communityId)
-        .eq('user_id', user.id)
+      const res = await fetch(`/api/communities/join?communityId=${communityId}`, {
+          method: 'DELETE'
+      });
 
-      if (!error) {
+      if (res.ok) {
         setMembershipStatus(prev => {
           const newStatus = { ...prev }
           delete newStatus[communityId]
@@ -157,9 +130,11 @@ export const CommunitiesList = () => {
         status: 'pending'
       }))
 
-      const { error } = await supabase
-        .from('call_invites')
-        .insert(invites)
+      const { error } = await fetch('/api/call-invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invites })
+      }).then(res => res.ok ? { error: null } : { error: 'Failed' });
 
       if (error) throw error
 
@@ -167,8 +142,7 @@ export const CommunitiesList = () => {
       const socket = io({ path: '/socket.io' })
       
       // We need to fetch the caller's name to show in the notification
-      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', currentUserId).single()
-      const callerName = profile?.full_name || 'Member'
+      const callerName = userProfile?.full_name || 'Member'
 
       socket.emit('initiate-call', {
         roomId,

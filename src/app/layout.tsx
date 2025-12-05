@@ -70,6 +70,9 @@ export default function RootLayout({
                 OneSignalDeferred.push(async function(OneSignal) {
                   await OneSignal.init({
                     appId: "af9c3011-df39-423c-a2fa-832d24775f98",
+                    allowLocalhostAsSecureOrigin: true,
+                    serviceWorkerPath: '/sw.js',
+                    serviceWorkerParam: { scope: '/' },
                   });
                 });
               `}

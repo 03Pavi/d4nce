@@ -76,6 +76,20 @@ app.prepare().then(() => {
       socket.join(userId);
     });
 
+    // Community Chat Events
+    socket.on('join-community-chat', ({ communityId, userId }) => {
+      console.log(`User ${userId} joined community chat ${communityId}`);
+      socket.join(`community-${communityId}`);
+      socket.data.communityId = communityId;
+      socket.data.userId = userId;
+    });
+
+    socket.on('send-community-message', ({ communityId, message }) => {
+      console.log(`Message sent to community ${communityId}`);
+      // Broadcast to all users in the community except sender
+      socket.to(`community-${communityId}`).emit('new-community-message', message);
+    });
+
     socket.on('initiate-call', ({ roomId, callerId, callerName, communityName, receiverIds }) => {
       console.log(`Call initiated by ${callerId} in room ${roomId} for users:`, receiverIds);
       

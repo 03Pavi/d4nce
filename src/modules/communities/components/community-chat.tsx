@@ -1,21 +1,10 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
-import { Box, Typography, TextField, IconButton, List, ListItem, ListItemText, ListItemAvatar, Avatar, Paper, CircularProgress } from '@mui/material'
+import { Box, Typography, TextField, IconButton, Avatar, Paper, CircularProgress } from '@mui/material'
 import { Send } from '@mui/icons-material'
-import { createClient } from '@/lib/supabase/client'
-
-interface Message {
-  id: string
-  user_id: string
-  content: string
-  created_at: string
-  profiles: {
-    full_name: string
-    avatar_url: string
-  }
-}
-
-import { notifyNewMessage } from '@/app/actions/notifications';
+import { io, Socket } from 'socket.io-client'
+import { messageDB, CommunityMessage } from '@/lib/message-db'
+import { useRouter } from 'next/navigation'
 
 interface CommunityChatProps {
   communityId: string
@@ -24,48 +13,22 @@ interface CommunityChatProps {
 }
 
 export const CommunityChat = ({ communityId, communityName, currentUserId }: CommunityChatProps) => {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<CommunityMessage[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [userProfile, setUserProfile] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  
-  const supabase = createClient()
+  const socketRef = useRef<Socket | null>(null)
+  const unsyncedCountRef = useRef(0)
+  const router = useRouter()
 
   useEffect(() => {
-    fetchMessages()
+    initChat()
     
-    // Subscribe to new messages
-    const channel = supabase
-      .channel(`community-chat-${communityId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'community_messages',
-          filter: `community_id=eq.${communityId}`
-        },
-        async (payload) => {
-          // Fetch user profile for the new message
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('id', payload.new.user_id)
-            .single()
-            
-          if (profile) {
-            const newMsg = {
-              ...payload.new,
-              profiles: profile
-            } as Message
-            setMessages(prev => [...prev, newMsg])
-          }
-        }
-      )
-      .subscribe()
-
     return () => {
-      supabase.removeChannel(channel)
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+      }
     }
   }, [communityId])
 
@@ -73,74 +36,125 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
     scrollToBottom()
   }, [messages])
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const fetchMessages = async () => {
+  const initChat = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('community_messages')
-        .select(`
-          id,
-          user_id,
-          content,
-          created_at,
-          profiles:profiles!community_messages_user_id_fkey (
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq('community_id', communityId)
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
       
-      if (data) {
-        // @ts-ignore
-        setMessages(data)
+      // Initialize IndexedDB
+      await messageDB.init()
+      
+      // Fetch user profile
+      const profileRes = await fetch('/api/profile')
+      if (profileRes.ok) {
+        const profile = await profileRes.json()
+        setUserProfile(profile)
       }
+      
+      // Load messages from IndexedDB
+      const localMessages = await messageDB.getMessages(communityId)
+      setMessages(localMessages)
+      
+      // If no local messages, fetch from API
+      if (localMessages.length === 0) {
+        const res = await fetch(`/api/communities/messages?communityId=${communityId}`)
+        if (res.ok) {
+          const serverMessages = await res.json()
+          // Store in IndexedDB
+          for (const msg of serverMessages) {
+            await messageDB.addMessage({ ...msg, synced: true })
+          }
+          setMessages(serverMessages)
+        }
+      }
+      
+      // Connect to Socket.IO
+      socketRef.current = io({ path: '/socket.io' })
+      
+      socketRef.current.emit('join-community-chat', { communityId, userId: currentUserId })
+      
+      socketRef.current.on('new-community-message', async (message: CommunityMessage) => {
+        // Add to IndexedDB
+        await messageDB.addMessage({ ...message, synced: true })
+        setMessages(prev => [...prev, message])
+      })
+      
     } catch (error) {
-      console.error('Error fetching messages:', error)
+      console.error('Error initializing chat:', error)
     } finally {
       setLoading(false)
     }
   }
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const syncMessages = async () => {
+    try {
+      const unsyncedMessages = await messageDB.getUnsyncedMessages(communityId)
+      
+      if (unsyncedMessages.length > 0) {
+        const messagesToSync = unsyncedMessages.map(msg => ({
+          community_id: msg.community_id,
+          user_id: msg.user_id,
+          content: msg.content,
+          created_at: msg.created_at
+        }))
+        
+        const res = await fetch('/api/communities/messages/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: messagesToSync })
+        })
+        
+        if (res.ok) {
+          const messageIds = unsyncedMessages.map(m => m.id)
+          await messageDB.markAsSynced(messageIds)
+          unsyncedCountRef.current = 0
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing messages:', error)
+    }
+  }
+
   const handleSend = async () => {
-    if (!newMessage.trim()) return
+    if (!newMessage.trim() || !userProfile) return
 
     try {
-      const { error } = await supabase
-        .from('community_messages')
-        .insert({
-          community_id: communityId,
-          user_id: currentUserId,
-          content: newMessage.trim()
-        })
-
-      if (error) throw error
-      
-      // Send Notification
-      // 1. Get sender name
-      const { data: senderProfile } = await supabase.from('profiles').select('full_name').eq('id', currentUserId).single();
-      const senderName = senderProfile?.full_name || 'Member';
-
-      // 2. Get receiver IDs (all approved members except sender)
-      const { data: members } = await supabase
-        .from('community_members')
-        .select('user_id')
-        .eq('community_id', communityId)
-        .eq('status', 'approved')
-        .neq('user_id', currentUserId);
-      
-      const receiverIds = members?.map(m => m.user_id) || [];
-
-      if (receiverIds.length > 0) {
-        await notifyNewMessage(senderName, communityName, newMessage.trim(), receiverIds, communityId);
+      const message: CommunityMessage = {
+        id: `${Date.now()}-${Math.random()}`,
+        community_id: communityId,
+        user_id: currentUserId,
+        content: newMessage.trim(),
+        created_at: new Date().toISOString(),
+        profiles: {
+          full_name: userProfile.full_name,
+          avatar_url: userProfile.avatar_url
+        },
+        synced: false
       }
-
+      
+      // Add to IndexedDB immediately
+      await messageDB.addMessage(message)
+      setMessages(prev => [...prev, message])
+      
+      // Emit via Socket.IO for real-time
+      if (socketRef.current) {
+        socketRef.current.emit('send-community-message', {
+          communityId,
+          message
+        })
+      }
+      
+      // Track unsynced count
+      unsyncedCountRef.current++
+      
+      // Sync to Supabase every 25 messages
+      if (unsyncedCountRef.current >= 25) {
+        await syncMessages()
+      }
+      
       setNewMessage('')
     } catch (error) {
       console.error('Error sending message:', error)
@@ -152,6 +166,11 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
       e.preventDefault()
       handleSend()
     }
+  }
+
+  const handleAvatarClick = (userId: string) => {
+    // Navigate to profile (you can create a profile view page)
+    router.push(`/profile/${userId}`)
   }
 
   return (
@@ -179,7 +198,17 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
                 }}
               >
                 {!isMe && (
-                  <Avatar src={msg.profiles.avatar_url} sx={{ width: 32, height: 32, mt: 0.5 }} />
+                  <Avatar 
+                    src={msg.profiles.avatar_url} 
+                    sx={{ 
+                      width: 32, 
+                      height: 32, 
+                      mt: 0.5,
+                      cursor: 'pointer',
+                      '&:hover': { opacity: 0.8 }
+                    }}
+                    onClick={() => handleAvatarClick(msg.user_id)}
+                  />
                 )}
                 <Box sx={{ maxWidth: '70%' }}>
                   {!isMe && (
@@ -194,10 +223,22 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
                       color: 'white',
                       borderRadius: 2,
                       borderTopLeftRadius: !isMe ? 0 : 2,
-                      borderTopRightRadius: isMe ? 0 : 2
+                      borderTopRightRadius: isMe ? 0 : 2,
+                      position: 'relative'
                     }}
                   >
                     <Typography variant="body2">{msg.content}</Typography>
+                    {!msg.synced && isMe && (
+                      <Box sx={{ 
+                        position: 'absolute', 
+                        bottom: 2, 
+                        right: 2, 
+                        width: 6, 
+                        height: 6, 
+                        bgcolor: '#ffd700', 
+                        borderRadius: '50%' 
+                      }} />
+                    )}
                   </Paper>
                   <Typography variant="caption" sx={{ color: '#666', display: 'block', textAlign: isMe ? 'right' : 'left', mt: 0.5, fontSize: '0.7rem' }}>
                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

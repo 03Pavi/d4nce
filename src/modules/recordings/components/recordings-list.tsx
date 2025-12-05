@@ -29,6 +29,7 @@ interface Recording {
     title: string;
     description: string;
     video_url: string;
+    thumbnail_url?: string;
     created_at: string;
     class_id?: string | null;
 }
@@ -227,31 +228,18 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
                                         display: 'flex',
                                         flexDirection: 'column'
                                     }}>
-                                        <Box sx={{ position: 'relative', pt: '56.25%', bgcolor: 'black' }}>
-                                            <ReactPlayer
-                                                // @ts-ignore
-                                                url={recording.video_url}
-                                                width="100%"
-                                                height="100%"
-                                                style={{ position: 'absolute', top: 0, left: 0 }}
-                                                controls
-                                                light
-                                                playIcon={
-                                                    <Box sx={{ 
-                                                        width: 64, 
-                                                        height: 64, 
-                                                        bgcolor: 'rgba(255,0,85,0.8)', 
-                                                        borderRadius: '50%', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
-                                                        justifyContent: 'center',
-                                                        cursor: 'pointer',
-                                                        '&:hover': { bgcolor: '#ff0055' }
-                                                    }}>
-                                                        <PlayArrow sx={{ fontSize: 40, color: 'white' }} />
-                                                    </Box>
-                                                }
-                                            />
+                                        <Box sx={{ position: 'relative', aspectRatio: '16/9', bgcolor: 'black' }}>
+                                            {recording.thumbnail_url ? (
+                                                <img 
+                                                    src={recording.thumbnail_url} 
+                                                    alt={recording.title} 
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                                />
+                                            ) : (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                                                    <PlayArrow sx={{ color: 'white', fontSize: 48, opacity: 0.8 }} />
+                                                </Box>
+                                            )}
                                         </Box>
                                         <CardContent sx={{ flex: 1 }}>
                                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -349,8 +337,7 @@ export const RecordingsList = ({ role }: RecordingsListProps) => {
                     {previewRecording && (
                         <Box sx={{ width: '100%', aspectRatio: '16/9' }}>
                             <ReactPlayer
-                                // @ts-ignore
-                                url={previewRecording.video_url}
+                                src={previewRecording.video_url}
                                 width="100%"
                                 height="100%"
                                 controls

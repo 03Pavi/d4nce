@@ -1,7 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, List, ListItem, ListItemButton, ListItemAvatar, Avatar, ListItemText, Checkbox, Typography, Box, CircularProgress } from '@mui/material'
-import { createClient } from '@/lib/supabase/client'
 import { VideoCall } from '@mui/icons-material'
 
 interface Member {
@@ -25,8 +24,6 @@ export const StartCallDialog = ({ open, onClose, communityId, currentUserId, onS
   const [members, setMembers] = useState<Member[]>([])
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
-  
-  const supabase = createClient()
 
   useEffect(() => {
     if (open) {
@@ -39,56 +36,11 @@ export const StartCallDialog = ({ open, onClose, communityId, currentUserId, onS
     try {
       setLoading(true)
       
-      // Fetch community admin
-      const { data: communityData } = await supabase
-        .from('communities')
-        .select(`
-            admin_id,
-            profiles:profiles!communities_admin_id_fkey (
-                full_name,
-                avatar_url
-            )
-        `)
-        .eq('id', communityId)
-        .single()
-
-      // Fetch members
-      const { data: membersData, error } = await supabase
-        .from('community_members')
-        .select(`
-          id,
-          user_id,
-          profiles:profiles!community_members_user_id_fkey (
-            full_name,
-            avatar_url
-          )
-        `)
-        .eq('community_id', communityId)
-        .eq('status', 'approved')
-        .neq('user_id', currentUserId) // Exclude self
-
-      if (error) throw error
+      const res = await fetch(`/api/communities/members?communityId=${communityId}`);
+      if (!res.ok) throw new Error('Failed to fetch members');
       
-      let allMembers: Member[] = []
-
-      // Add admin if not self
-      if (communityData && communityData.admin_id !== currentUserId) {
-         // @ts-ignore
-         const adminProfile = Array.isArray(communityData.profiles) ? communityData.profiles[0] : communityData.profiles
-         
-         allMembers.push({
-            id: 'admin',
-            user_id: communityData.admin_id,
-            profiles: adminProfile
-         })
-      }
-
-      if (membersData) {
-        // @ts-ignore
-        allMembers = [...allMembers, ...membersData]
-      }
-      
-      setMembers(allMembers)
+      const allMembers = await res.json();
+      setMembers(allMembers);
 
     } catch (error) {
       console.error('Error fetching members for call:', error)

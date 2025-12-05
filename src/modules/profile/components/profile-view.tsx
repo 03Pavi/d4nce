@@ -236,7 +236,7 @@ export const ProfileView = () => {
       <ConfirmDialog 
         open={confirmOpen} 
         title="Delete Reel" 
-        message="Are you sure you want to delete this reel? This action cannot be undone." 
+        message="Are you sure you want to delete this reel?" 
         onConfirm={handleConfirmDelete} 
         onCancel={() => setConfirmOpen(false)} 
       />

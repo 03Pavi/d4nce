@@ -222,7 +222,7 @@ export const ClassesManagement = () => {
         <ConfirmDialog 
             open={confirmOpen} 
             title="Delete Class" 
-            message="Are you sure you want to delete this class? This action cannot be undone." 
+            message="Are you sure you want to delete this class?" 
             onConfirm={handleConfirmDelete} 
             onCancel={() => setConfirmOpen(false)} 
         />

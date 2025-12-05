@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import dayjs from 'dayjs'
 import { Class, Student, Enrollment } from './types'
 
@@ -59,8 +58,6 @@ export const useClassesManagement = () => {
     duration_minutes: 60
   })
 
-  const supabase = createClient()
-
   useEffect(() => {
     fetchClasses()
     fetchStudents()
@@ -68,62 +65,44 @@ export const useClassesManagement = () => {
 
   const fetchClasses = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('classes')
-      .select(`
-        *,
-        class_enrollments(count)
-      `)
-      .order('created_at', { ascending: false })
-
-    if (error) {
+    try {
+      const response = await fetch('/api/classes')
+      if (!response.ok) throw new Error('Failed to fetch classes')
+      const data = await response.json()
+      setClasses(data || [])
+    } catch (error) {
       console.error('Error fetching classes:', error)
-      return
+    } finally {
+      setIsLoading(false);
     }
-
-    const classesWithCount = data?.map(cls => ({
-      ...cls,
-      enrolled_count: cls.class_enrollments?.[0]?.count || 0
-    }))
-
-    setClasses(classesWithCount || [])
-    setIsLoading(false);
   }
 
   const fetchStudents = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, avatar_url')
-      .eq('role', 'student')
-      .order('full_name')
-
-    if (error) {
+    try {
+      const response = await fetch('/api/students')
+      if (!response.ok) throw new Error('Failed to fetch students')
+      const data = await response.json()
+      setStudents(data || [])
+    } catch (error) {
       console.error('Error fetching students:', error)
-      return
+    } finally {
+      setIsLoading(false);
     }
-
-    setStudents(data || [])
-    setIsLoading(false);
   }
 
   const fetchEnrollments = async (classId: string) => {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('class_enrollments')
-      .select(`
-        *,
-        student:profiles(id, full_name, email, avatar_url)
-      `)
-      .eq('class_id', classId)
-
-    if (error) {
+    try {
+      const response = await fetch(`/api/classes/${classId}/enrollments`)
+      if (!response.ok) throw new Error('Failed to fetch enrollments')
+      const data = await response.json()
+      setEnrollments(data || [])
+    } catch (error) {
       console.error('Error fetching enrollments:', error)
-      return
+    } finally {
+      setIsLoading(false);
     }
-
-    setEnrollments(data || [])
-    setIsLoading(false);
   }
 
   const handleCreateClass = async () => {
@@ -137,56 +116,57 @@ export const useClassesManagement = () => {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { error } = await supabase
-      .from('classes')
-      .insert({
-        title: newClass.title,
-        description: newClass.description,
-        instructor_id: user.id,
-        session_id: newClass.session_id,
-        price: Number(newClass.price),
-        max_students: Number(newClass.max_students),
-        scheduled_at: newClass.scheduled_at.toISOString(),
-        duration_minutes: Number(newClass.duration_minutes)
+    try {
+      const response = await fetch('/api/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newClass.title,
+          description: newClass.description,
+          session_id: newClass.session_id,
+          price: Number(newClass.price),
+          max_students: Number(newClass.max_students),
+          scheduled_at: newClass.scheduled_at.toISOString(),
+          duration_minutes: Number(newClass.duration_minutes)
+        })
       })
 
-    if (error) {
-      setSnackbar({ open: true, message: 'Error creating class: ' + error.message, severity: 'error' })
-      return
-    }
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to create class')
 
-    setSnackbar({ open: true, message: 'Class created successfully!', severity: 'success' })
-    setCreateDialogOpen(false)
-    setNewClass({
-      title: '',
-      description: '',
-      session_id: generateSessionId(),
-      price: 0,
-      max_students: 50,
-      scheduled_at: dayjs().add(1, 'day'),
-      duration_minutes: 60
-    })
-    fetchClasses()
+      setSnackbar({ open: true, message: 'Class created successfully!', severity: 'success' })
+      setCreateDialogOpen(false)
+      setNewClass({
+        title: '',
+        description: '',
+        session_id: generateSessionId(),
+        price: 0,
+        max_students: 50,
+        scheduled_at: dayjs().add(1, 'day'),
+        duration_minutes: 60
+      })
+      fetchClasses()
+    } catch (error: any) {
+      setSnackbar({ open: true, message: 'Error creating class: ' + error.message, severity: 'error' })
+    }
   }
 
   const handleDeleteClass = async (classId: string) => {
     // Confirmation handled by UI component
 
-    const { error } = await supabase
-      .from('classes')
-      .delete()
-      .eq('id', classId)
+    try {
+      const response = await fetch(`/api/classes/${classId}`, {
+        method: 'DELETE'
+      })
 
-    if (error) {
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to delete class')
+
+      setSnackbar({ open: true, message: 'Class deleted successfully', severity: 'success' })
+      fetchClasses()
+    } catch (error: any) {
       setSnackbar({ open: true, message: 'Error deleting class', severity: 'error' })
-      return
     }
-
-    setSnackbar({ open: true, message: 'Class deleted successfully', severity: 'success' })
-    fetchClasses()
   }
 
   const handleOpenEnrollDialog = async (cls: Class) => {
@@ -204,41 +184,46 @@ export const useClassesManagement = () => {
       has_paid: selectedClass.price === 0 // Auto-mark as paid if free
     }))
 
-    const { error } = await supabase
-      .from('class_enrollments')
-      .insert(enrollmentData)
+    try {
+      const response = await fetch(`/api/classes/${selectedClass.id}/enrollments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(enrollmentData)
+      })
 
-    if (error) {
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to enroll students')
+
+      setSnackbar({ open: true, message: `${selectedStudents.length} student(s) enrolled successfully!`, severity: 'success' })
+      setSelectedStudents([])
+      if (selectedClass) {
+        await fetchEnrollments(selectedClass.id)
+      }
+      fetchClasses()
+    } catch (error: any) {
       setSnackbar({ open: true, message: 'Error enrolling students: ' + error.message, severity: 'error' })
-      return
     }
-
-    setSnackbar({ open: true, message: `${selectedStudents.length} student(s) enrolled successfully!`, severity: 'success' })
-    setSelectedStudents([])
-    if (selectedClass) {
-      await fetchEnrollments(selectedClass.id)
-    }
-    fetchClasses()
   }
 
   const handleRemoveEnrollment = async (enrollmentId: string) => {
     if (!confirm('Are you sure you want to remove this student from the class?')) return
 
-    const { error } = await supabase
-      .from('class_enrollments')
-      .delete()
-      .eq('id', enrollmentId)
+    try {
+      const response = await fetch(`/api/enrollments/${enrollmentId}`, {
+        method: 'DELETE'
+      })
 
-    if (error) {
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to remove enrollment')
+
+      setSnackbar({ open: true, message: 'Student removed from class', severity: 'success' })
+      if (selectedClass) {
+        await fetchEnrollments(selectedClass.id)
+      }
+      fetchClasses()
+    } catch (error: any) {
       setSnackbar({ open: true, message: 'Error removing enrollment', severity: 'error' })
-      return
     }
-
-    setSnackbar({ open: true, message: 'Student removed from class', severity: 'success' })
-    if (selectedClass) {
-      await fetchEnrollments(selectedClass.id)
-    }
-    fetchClasses()
   }
 
   const handleOpenEditDialog = (cls: Class) => {
@@ -266,27 +251,30 @@ export const useClassesManagement = () => {
       return
     }
 
-    const { error } = await supabase
-      .from('classes')
-      .update({
-        title: editClass.title,
-        description: editClass.description,
-        session_id: editClass.session_id,
-        price: Number(editClass.price),
-        max_students: Number(editClass.max_students),
-        scheduled_at: editClass.scheduled_at.toISOString(),
-        duration_minutes: Number(editClass.duration_minutes)
+    try {
+      const response = await fetch(`/api/classes/${editClass.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editClass.title,
+          description: editClass.description,
+          session_id: editClass.session_id,
+          price: Number(editClass.price),
+          max_students: Number(editClass.max_students),
+          scheduled_at: editClass.scheduled_at.toISOString(),
+          duration_minutes: Number(editClass.duration_minutes)
+        })
       })
-      .eq('id', editClass.id)
 
-    if (error) {
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to update class')
+
+      setSnackbar({ open: true, message: 'Class updated successfully!', severity: 'success' })
+      setEditDialogOpen(false)
+      fetchClasses()
+    } catch (error: any) {
       setSnackbar({ open: true, message: 'Error updating class: ' + error.message, severity: 'error' })
-      return
     }
-
-    setSnackbar({ open: true, message: 'Class updated successfully!', severity: 'success' })
-    setEditDialogOpen(false)
-    fetchClasses()
   }
 
   const handleJoinClass = (sessionId: string) => {

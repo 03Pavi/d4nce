@@ -7,6 +7,18 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   disable: false, // Enable PWA in development for testing
   workboxOptions: {
     disableDevLogs: true,
+    runtimeCaching: [
+      {
+        urlPattern: /^https?:\/\/.*\/api\/socket.*/i,
+        handler: 'NetworkOnly',
+      },
+      {
+        urlPattern: /\/socket\.io\/.*/i,
+        handler: 'NetworkOnly',
+      },
+    ],
+    // Import OneSignal SDK in the service worker
+    importScripts: ['https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js'],
   },
 });
 

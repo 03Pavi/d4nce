@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from '@mui/material'
-import { createClient } from '@/lib/supabase/client'
 
 interface EditReelDialogProps {
     open: boolean;
@@ -12,7 +11,6 @@ interface EditReelDialogProps {
 export const EditReelDialog = ({ open, onClose, reel, onUpdate }: EditReelDialogProps) => {
     const [description, setDescription] = useState(reel?.description || '');
     const [updating, setUpdating] = useState(false);
-    const supabase = createClient();
 
     useEffect(() => {
         if (reel) setDescription(reel.description);
@@ -20,16 +18,26 @@ export const EditReelDialog = ({ open, onClose, reel, onUpdate }: EditReelDialog
 
     const handleUpdate = async () => {
         setUpdating(true);
-        const { error } = await supabase
-            .from('reels')
-            .update({ description })
-            .eq('id', reel.id);
-        
-        if (!error) {
-            onUpdate(reel.id, description);
-            onClose();
+        try {
+            const response = await fetch(`/api/reels/${reel.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ description }),
+            });
+
+            if (response.ok) {
+                onUpdate(reel.id, description);
+                onClose();
+            } else {
+                console.error('Failed to update reel');
+            }
+        } catch (error) {
+            console.error('Error updating reel:', error);
+        } finally {
+            setUpdating(false);
         }
-        setUpdating(false);
     };
 
     return (
@@ -54,7 +62,9 @@ export const EditReelDialog = ({ open, onClose, reel, onUpdate }: EditReelDialog
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose} sx={{ color: 'var(--text-secondary)' }}>Cancel</Button>
-                <Button onClick={handleUpdate} variant="contained" sx={{ bgcolor: 'var(--primary)' }}>Save</Button>
+                <Button onClick={handleUpdate} variant="contained" sx={{ bgcolor: 'var(--primary)' }} disabled={updating}>
+                    {updating ? 'Saving...' : 'Save'}
+                </Button>
             </DialogActions>
         </Dialog>
     );

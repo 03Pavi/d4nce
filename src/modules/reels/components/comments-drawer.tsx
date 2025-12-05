@@ -55,32 +55,39 @@ export const CommentsDrawer = ({ open, onClose, reelId, userId }: CommentsDrawer
     const fetchComments = async () => {
         if (comments.length === 0) setLoading(true);
         
-        const { data, error } = await supabase
-            .from('comments')
-            .select('*, profiles(full_name, avatar_url)')
-            .eq('reel_id', reelId)
-            .order('created_at', { ascending: false });
-        
-        if (!error && data) {
-            setComments(data);
+        try {
+            const response = await fetch(`/api/reels/${reelId}/comments`);
+            if (response.ok) {
+                const data = await response.json();
+                setComments(data);
+            }
+        } catch (error) {
+            console.error('Error fetching comments:', error);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handlePostComment = async () => {
         if (!newComment.trim() || !userId) return;
 
-        const { error } = await supabase
-            .from('comments')
-            .insert({
-                user_id: userId,
-                reel_id: reelId,
-                content: newComment.trim()
+        try {
+            const response = await fetch(`/api/reels/${reelId}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: newComment.trim()
+                }),
             });
 
-        if (!error) {
-            setNewComment('');
-            fetchComments(); 
+            if (response.ok) {
+                setNewComment('');
+                fetchComments(); 
+            }
+        } catch (error) {
+            console.error('Error posting comment:', error);
         }
     };
 
@@ -102,22 +109,35 @@ export const CommentsDrawer = ({ open, onClose, reelId, userId }: CommentsDrawer
 
     const handleDeleteClick = async () => {
         if (selectedCommentId) {
-            await supabase.from('comments').delete().eq('id', selectedCommentId);
-            fetchComments();
+            try {
+                await fetch(`/api/comments/${selectedCommentId}`, {
+                    method: 'DELETE',
+                });
+                fetchComments();
+            } catch (error) {
+                console.error('Error deleting comment:', error);
+            }
         }
         handleMenuClose();
     };
 
     const handleUpdateComment = async () => {
         if (editingCommentId && editContent.trim()) {
-            await supabase
-                .from('comments')
-                .update({ content: editContent.trim() })
-                .eq('id', editingCommentId);
-            
-            setEditingCommentId(null);
-            setEditContent('');
-            fetchComments();
+            try {
+                await fetch(`/api/comments/${editingCommentId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content: editContent.trim() }),
+                });
+                
+                setEditingCommentId(null);
+                setEditContent('');
+                fetchComments();
+            } catch (error) {
+                console.error('Error updating comment:', error);
+            }
         }
     };
 

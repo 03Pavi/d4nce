@@ -45,35 +45,11 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
 
   const fetchCommunities = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      // Fetch communities where user is a member
-      const { data: memberData } = await supabase
-        .from('community_members')
-        .select(`
-          community_id,
-          communities (
-            id,
-            name
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'approved')
-
-      // Fetch communities where user is admin
-      const { data: adminData } = await supabase
-        .from('communities')
-        .select('id, name')
-        .eq('admin_id', user.id)
-
-      const memberCommunities = memberData?.map((d: any) => d.communities) || []
-      const adminCommunities = adminData || []
-      
-      // Combine and deduplicate
-      const allCommunities = [...adminCommunities, ...memberCommunities].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
-      
-      setCommunities(allCommunities)
+      const response = await fetch('/api/communities/my-communities')
+      if (response.ok) {
+        const data = await response.json()
+        setCommunities(data)
+      }
     } catch (error) {
       console.error('Error fetching communities:', error)
     }
@@ -110,7 +86,7 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
       
       const userId = user.id;
 
-      // 2. Upload file to Supabase Storage
+      // 2. Upload file to Supabase Storage (Client-side)
       const fileExt = file.name.split('.').pop()
       const fileName = `${userId}/${Date.now()}.${fileExt}`
       const { error: uploadError } = await supabase.storage
@@ -124,21 +100,25 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
         .from('reels')
         .getPublicUrl(fileName)
 
-      // 4. Insert record into database
-      const { data: insertedReel, error: dbError } = await supabase
-        .from('reels')
-        .insert({
-          user_id: userId,
+      // 4. Create record via API
+      const response = await fetch('/api/reels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           url: publicUrl,
           description: description,
           community_id: selectedCommunity?.id || null,
-          likes_count: 0,
-          comments_count: 0
-        })
-        .select()
-        .single()
+        }),
+      })
 
-      if (dbError) throw dbError
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create reel record')
+      }
+
+      const insertedReel = await response.json()
 
       // Notify
       const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', userId).single();

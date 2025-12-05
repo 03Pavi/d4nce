@@ -304,7 +304,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                                 }} 
                                 sx={{ mt: 2 }}
                             >
-                                {role === 'admin' ? 'Start Live Class' : 'Join Class'}
+                                {connectedCount > 0 ? 'Join Tribe' : (role === 'admin' ? 'Start Live' : 'Join Tribe')}
                             </Button>
                         </Box>
                      )}

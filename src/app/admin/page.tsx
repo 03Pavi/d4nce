@@ -22,6 +22,7 @@ const AdminPage = () => {
   const [currentSessionId, setCurrentSessionId] = useState('public-stream');
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isPending, startTransition] = useTransition();
+  const [autoJoin, setAutoJoin] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,27 +30,31 @@ const AdminPage = () => {
 
   useEffect(() => {
     const checkRole = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        try {
+            const userRes = await fetch('/api/auth/user');
+            if (!userRes.ok) {
+                router.push('/login');
+                return;
+            }
+
+            const res = await fetch('/api/profile');
+            if (!res.ok) throw new Error('Failed to fetch profile');
+            
+            const profile = await res.json();
+
+            if (profile?.role !== 'admin') {
+                router.push('/student');
+            } else {
+                setUserProfile(profile);
+                setLoading(false);
+            }
+        } catch (error) {
+            console.error('Error fetching profile:', error);
             router.push('/login');
-            return;
-        }
-
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-        if (profile?.role !== 'admin') {
-            router.push('/student');
-        } else {
-            setUserProfile(profile);
-            setLoading(false);
         }
     };
     checkRole();
-  }, [router, supabase]);
+  }, [router]);
 
   // Sync tab with URL
   useEffect(() => {
@@ -57,6 +62,9 @@ const AdminPage = () => {
       const reelId = searchParams.get('reelId');
       const session = searchParams.get('session');
       const callId = searchParams.get('callId');
+      const autoJoinParam = searchParams.get('autoJoin');
+
+      setAutoJoin(autoJoinParam === 'true');
 
       if (callId) {
           setCurrentSessionId(callId);
@@ -71,7 +79,7 @@ const AdminPage = () => {
           setValue(4); // Reels tab
       } else if (tab) {
           if (tab === 'live') setValue(0);
-          if (tab === 'reminders') setValue(2);
+          if (tab === 'notifications') setValue(2);
           if (tab === 'reels') setValue(4);
           if (tab === 'manage-classes') setValue(5);
           if (tab === 'profile') setValue(6);
@@ -98,7 +106,7 @@ const AdminPage = () => {
                   setCurrentSessionId(newUrl.searchParams.get('session') || 'public-stream');
               }
           }
-          if (newValue === 2) newUrl.searchParams.set('tab', 'reminders');
+          if (newValue === 2) newUrl.searchParams.set('tab', 'notifications');
           if (newValue === 4) newUrl.searchParams.set('tab', 'reels');
           if (newValue === 5) newUrl.searchParams.set('tab', 'manage-classes');
           if (newValue === 6) newUrl.searchParams.set('tab', 'profile');
@@ -243,13 +251,13 @@ const AdminPage = () => {
             <ListItem disablePadding>
                 <ListItemButton onClick={() => { handleTabChange(5); setMobileOpen(false); }} selected={value === 5}>
                     <ListItemIcon sx={{ color: value === 5 ? '#ff0055' : '#888' }}><ManageAccounts /></ListItemIcon>
-                    <ListItemText primary="Manage Classes" sx={{ color: value === 5 ? '#ff0055' : 'white' }} />
+                    <ListItemText primary="Manage Tribes" sx={{ color: value === 5 ? '#ff0055' : 'white' }} />
                 </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
                 <ListItemButton onClick={() => { handleTabChange(2); setMobileOpen(false); }} selected={value === 2}>
                     <ListItemIcon sx={{ color: value === 2 ? '#ff0055' : '#888' }}><Notifications /></ListItemIcon>
-                    <ListItemText primary="Reminders" sx={{ color: value === 2 ? '#ff0055' : 'white' }} />
+                    <ListItemText primary="Notifications" sx={{ color: value === 2 ? '#ff0055' : 'white' }} />
                 </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
@@ -282,6 +290,7 @@ const AdminPage = () => {
             role="admin" 
             sessionId={currentSessionId} 
             isPip={value !== 0}
+            autoJoin={autoJoin}
         />
         
         {value === 2 && <ReminderList role="admin" />}

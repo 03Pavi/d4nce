@@ -22,6 +22,7 @@ const StudentPage = () => {
   const [currentSessionId, setCurrentSessionId] = useState('public-stream');
   const [isPending, startTransition] = useTransition()
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [autoJoin, setAutoJoin] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,27 +30,31 @@ const StudentPage = () => {
 
   useEffect(() => {
     const checkRole = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        try {
+            const userRes = await fetch('/api/auth/user');
+            if (!userRes.ok) {
+                router.push('/login');
+                return;
+            }
+
+            const res = await fetch('/api/profile');
+            if (!res.ok) throw new Error('Failed to fetch profile');
+            
+            const profile = await res.json();
+
+            if (profile?.role === 'admin') {
+                router.push('/admin');
+            } else {
+                setUserProfile(profile);
+                setLoading(false);
+            }
+        } catch (error) {
+            console.error('Error fetching profile:', error);
             router.push('/login');
-            return;
-        }
-
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-        if (profile?.role === 'admin') {
-            router.push('/admin');
-        } else {
-            setUserProfile(profile);
-            setLoading(false);
         }
     };
     checkRole();
-  }, [router, supabase]);
+  }, [router]);
 
   // Sync tab with URL
   useEffect(() => {
@@ -57,6 +62,9 @@ const StudentPage = () => {
       const reelId = searchParams.get('reelId');
       const session = searchParams.get('session');
       const callId = searchParams.get('callId');
+      const autoJoinParam = searchParams.get('autoJoin');
+
+      setAutoJoin(autoJoinParam === 'true');
 
       if (callId) {
           setCurrentSessionId(callId);
@@ -71,7 +79,7 @@ const StudentPage = () => {
           setValue(3); // Reels tab
       } else if (tab) {
           if (tab === 'live') setValue(0);
-          if (tab === 'reminders') setValue(1);
+          if (tab === 'notifications') setValue(1);
           if (tab === 'reels') setValue(3);
           if (tab === 'my-classes') setValue(4);
           if (tab === 'profile') setValue(5);
@@ -94,7 +102,7 @@ const StudentPage = () => {
                   setCurrentSessionId('public-stream');
               }
           }
-          if (newValue === 1) newUrl.searchParams.set('tab', 'reminders');
+          if (newValue === 1) newUrl.searchParams.set('tab', 'notifications');
           if (newValue === 3) newUrl.searchParams.set('tab', 'reels');
           if (newValue === 4) newUrl.searchParams.set('tab', 'my-classes');
           if (newValue === 5) newUrl.searchParams.set('tab', 'profile');
@@ -152,6 +160,14 @@ const StudentPage = () => {
           </Box>
 
           <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
+              <IconButton 
+                onClick={() => handleTabChange(7)} 
+                sx={{ color: value === 7 ? '#ff0055' : 'var(--text-secondary)' }}
+                title="Communities"
+              >
+                <Groups />
+              </IconButton>
+
               <IconButton 
                 onClick={() => handleTabChange(6)} 
                 sx={{ color: value === 6 ? '#ff0055' : 'var(--text-secondary)' }}
@@ -230,13 +246,13 @@ const StudentPage = () => {
             <ListItem disablePadding>
                 <ListItemButton onClick={() => { handleTabChange(4); setMobileOpen(false); }} selected={value === 4}>
                     <ListItemIcon sx={{ color: value === 4 ? '#ff0055' : '#888' }}><LibraryBooks /></ListItemIcon>
-                    <ListItemText primary="My Classes" sx={{ color: value === 4 ? '#ff0055' : 'white' }} />
+                    <ListItemText primary="My Tribes" sx={{ color: value === 4 ? '#ff0055' : 'white' }} />
                 </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
                 <ListItemButton onClick={() => { handleTabChange(1); setMobileOpen(false); }} selected={value === 1}>
                     <ListItemIcon sx={{ color: value === 1 ? '#ff0055' : '#888' }}><Notifications /></ListItemIcon>
-                    <ListItemText primary="Reminders" sx={{ color: value === 1 ? '#ff0055' : 'white' }} />
+                    <ListItemText primary="Notifications" sx={{ color: value === 1 ? '#ff0055' : 'white' }} />
                 </ListItemButton>
             </ListItem>
             <ListItem disablePadding>
@@ -265,7 +281,7 @@ const StudentPage = () => {
 
       {/* Main Content */}
       <Box sx={{ flex: 1, overflow: 'hidden', pb: 7, position: 'relative' }}>
-        {value === 0 && <LiveSession role="student" isPaid={false} sessionId={currentSessionId} />}
+        {value === 0 && <LiveSession role="student" isPaid={false} sessionId={currentSessionId} autoJoin={autoJoin} />}
         {value === 1 && <ReminderList role="student" />}
         {value === 3 && <ReelsFeed key={feedKey} />}
         {value === 4 && <StudentClassesView />}
@@ -288,7 +304,7 @@ const StudentPage = () => {
           }}
         >
           <BottomNavigationAction label="Live" value={0} icon={<LiveTv />} />
-          <BottomNavigationAction label="Communities" value={7} icon={<Groups />} />
+
           
           <BottomNavigationAction 
             label="Create" 

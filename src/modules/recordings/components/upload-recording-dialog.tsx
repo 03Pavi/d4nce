@@ -18,6 +18,7 @@ import {
 import { CloudUpload, Close } from '@mui/icons-material';
 import { createClient } from '@/lib/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { extractThumbnail } from '@/lib/get-thumbnail';
 
 interface UploadRecordingDialogProps {
     open: boolean;
@@ -108,7 +109,30 @@ export const UploadRecordingDialog = ({ open, onClose, onUploadSuccess }: Upload
 
             await uploadFile();
 
-            // 2. Get Public URL
+            // 2. Generate and Upload Thumbnail
+            let thumbnailUrl = null;
+            try {
+                const thumbnailDataUrl = await extractThumbnail(file);
+                const thumbnailBlob = await (await fetch(thumbnailDataUrl)).blob();
+                const thumbnailFileName = `${uuidv4()}.jpg`;
+                const thumbnailPath = `thumbnails/${user.id}/${thumbnailFileName}`;
+                
+                const { error: thumbUploadError } = await supabase.storage
+                    .from('recordings')
+                    .upload(thumbnailPath, thumbnailBlob);
+                    
+                if (!thumbUploadError) {
+                    const { data: { publicUrl: thumbPublicUrl } } = supabase.storage
+                        .from('recordings')
+                        .getPublicUrl(thumbnailPath);
+                    thumbnailUrl = thumbPublicUrl;
+                }
+            } catch (thumbErr) {
+                console.error('Failed to generate/upload thumbnail:', thumbErr);
+                // Continue without thumbnail if it fails
+            }
+
+            // 3. Get Public URL for Video
             const { data: { publicUrl } } = supabase.storage
                 .from('recordings')
                 .getPublicUrl(filePath);
@@ -120,6 +144,7 @@ export const UploadRecordingDialog = ({ open, onClose, onUploadSuccess }: Upload
                     title,
                     description,
                     video_url: publicUrl,
+                    thumbnail_url: thumbnailUrl,
                     created_by: user.id,
                     class_id: selectedClassId || null // Optional class association
                 });

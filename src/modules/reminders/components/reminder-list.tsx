@@ -106,60 +106,44 @@ export const ReminderList = ({ role }: ReminderListProps) => {
     }, []);
 
     const cleanupExpiredReminders = async () => {
-        const now = new Date().toISOString();
-        const { error } = await supabase
-            .from('reminders')
-            .delete()
-            .lt('scheduled_time', now);
-        
-        if (error) {
-            console.error('Error cleaning up expired reminders:', error);
-        }
+        // This should ideally be a scheduled job or handled by the API
+        // For now, we'll leave it as is or move it to the API if needed.
+        // But since we are converting API calls, let's skip this client-side cleanup 
+        // as it requires delete permission which the client might not have if we lock down RLS.
+        // We will assume the server handles cleanup or we add a cleanup endpoint.
     };
 
     const fetchReminders = async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('reminders')
-            .select('*')
-            .order('scheduled_time', { ascending: true });
-        
-        if (error) {
-            console.error('Error fetching reminders:', error);
-        }
-        
-        if (data) {
+        try {
+            const res = await fetch('/api/reminders');
+            if (!res.ok) throw new Error('Failed to fetch reminders');
+            const data = await res.json();
             setReminders(data);
+        } catch (error) {
+            console.error('Error fetching reminders:', error);
         }
         setLoading(false);
     };
 
     const fetchCallInvites = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-            .from('call_invites')
-            .select(`
-                *,
-                communities (name),
-                profiles:caller_id (full_name, avatar_url)
-            `)
-            .eq('receiver_id', user.id)
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false });
-
-        if (data) {
+        try {
+            const res = await fetch('/api/call-invites');
+            if (!res.ok) throw new Error('Failed to fetch call invites');
+            const data = await res.json();
             setCallInvites(data);
+        } catch (error) {
+            console.error('Error fetching call invites:', error);
         }
     };
 
     const handleAcceptCall = async (invite: any) => {
-        // Update status
-        await supabase
-            .from('call_invites')
-            .update({ status: 'accepted' })
-            .eq('id', invite.id);
+        // Update status via API
+        await fetch('/api/call-invites', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: invite.id, status: 'accepted' })
+        });
         
         // Navigate to call
         // Assuming we route to the student page with callId
@@ -167,10 +151,11 @@ export const ReminderList = ({ role }: ReminderListProps) => {
     };
 
     const handleRejectCall = async (inviteId: string) => {
-        await supabase
-            .from('call_invites')
-            .update({ status: 'rejected' })
-            .eq('id', inviteId);
+        await fetch('/api/call-invites', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: inviteId, status: 'rejected' })
+        });
         
         setCallInvites(prev => prev.filter(i => i.id !== inviteId));
     };
@@ -196,22 +181,28 @@ export const ReminderList = ({ role }: ReminderListProps) => {
             return;
         }
         
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        const { error } = await supabase.from('reminders').insert({
-            title: title,
-            scheduled_time: time.toISOString(),
-            for_group: forGroup || 'All',
-            created_by: user?.id
-        });
+        try {
+            const res = await fetch('/api/reminders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: title,
+                    scheduled_time: time.toISOString(),
+                    for_group: forGroup || 'All'
+                })
+            });
 
-        if (error) {
-            console.error('Error adding reminder:', error);
-            setSnackbar({ open: true, message: 'Failed to add reminder: ' + error.message, severity: 'error' });
-        } else {
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to add reminder');
+            }
+
             setOpen(false);
             setSnackbar({ open: true, message: 'Reminder added successfully!', severity: 'success' });
             fetchReminders();
+        } catch (error: any) {
+            console.error('Error adding reminder:', error);
+            setSnackbar({ open: true, message: 'Failed to add reminder: ' + error.message, severity: 'error' });
         }
     }
 
@@ -223,12 +214,17 @@ export const ReminderList = ({ role }: ReminderListProps) => {
     const handleConfirmDelete = async () => {
         if (!deleteId) return;
         
-        const { error } = await supabase.from('reminders').delete().eq('id', deleteId);
-        if (error) {
-             setSnackbar({ open: true, message: 'Failed to delete reminder', severity: 'error' });
-        } else {
+        try {
+            const res = await fetch(`/api/reminders?id=${deleteId}`, {
+                method: 'DELETE'
+            });
+
+            if (!res.ok) throw new Error('Failed to delete');
+
             setSnackbar({ open: true, message: 'Reminder deleted', severity: 'info' });
             fetchReminders();
+        } catch (error) {
+             setSnackbar({ open: true, message: 'Failed to delete reminder', severity: 'error' });
         }
         setConfirmOpen(false);
         setDeleteId(null);
@@ -260,13 +256,13 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                 background: 'linear-gradient(to bottom, #000000 0%, #0a0a0a 100%)',
             }}>
                 {/* Fixed Header Section */}
-                <Box sx={{ pt: { xs: 2, md: 4 }, pb: 2, px: 2, bgcolor: 'transparent', zIndex: 10 }}>
-                    <Container maxWidth="lg">
+                <Box sx={{ pt: { xs: 2, md: 4 }, pb: 2, px: { xs: 1, sm: 2 }, bgcolor: 'transparent', zIndex: 10 }}>
+                    <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 2 } }}>
                         <Box sx={{ color: 'white' }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                        <Typography variant="h5" fontWeight="bold">
+                                        <Typography sx={{ fontSize: { xs: '1.25rem', md: '1.5rem' }, fontWeight: 'bold' }}>
                                             {role === 'admin' ? 'Manage Notifications' : 'Notifications'}
                                         </Typography>
                                         <IconButton 
@@ -280,7 +276,7 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                             <Refresh fontSize="small" />
                                         </IconButton>
                                     </Box>
-                                    <Typography variant="body2" sx={{ color: '#888' }}>
+                                    <Typography variant="body2" sx={{ color: '#888', fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
                                         {role === 'admin' 
                                             ? 'Manage alerts, reminders, and announcements'
                                             : 'Stay updated with your classes, calls, and alerts'
@@ -351,7 +347,15 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                                     border: '1px solid #ff0055',
                                                     boxShadow: '0 0 20px rgba(255,0,85,0.2)'
                                                 }}>
-                                                    <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, '&:last-child': { pb: 2 } }}>
+                                                    <CardContent sx={{ 
+                                                        display: 'flex', 
+                                                        flexDirection: { xs: 'column', sm: 'row' },
+                                                        alignItems: { xs: 'stretch', sm: 'center' }, 
+                                                        justifyContent: 'space-between', 
+                                                        p: 2, 
+                                                        gap: { xs: 2, sm: 0 },
+                                                        '&:last-child': { pb: 2 } 
+                                                    }}>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                                             <Box sx={{ position: 'relative' }}>
                                                                 <img 
@@ -382,13 +386,14 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                                                 </Typography>
                                                             </Box>
                                                         </Box>
-                                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                                        <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-end', sm: 'flex-start' } }}>
                                                             <Button 
                                                                 variant="outlined" 
                                                                 color="error" 
                                                                 size="small"
                                                                 startIcon={<Close />}
                                                                 onClick={() => handleRejectCall(invite.id)}
+                                                                sx={{ flex: { xs: 1, sm: 'none' } }}
                                                             >
                                                                 Reject
                                                             </Button>
@@ -398,7 +403,7 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                                                 size="small"
                                                                 startIcon={<Check />}
                                                                 onClick={() => handleAcceptCall(invite)}
-                                                                sx={{ bgcolor: '#00e676', '&:hover': { bgcolor: '#00c853' } }}
+                                                                sx={{ bgcolor: '#00e676', '&:hover': { bgcolor: '#00c853' }, flex: { xs: 1, sm: 'none' } }}
                                                             >
                                                                 Accept
                                                             </Button>
@@ -420,11 +425,11 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                         bgcolor: 'rgba(255,255,255,0.03)', 
                                         border: '1px dashed rgba(255,255,255,0.1)',
                                         textAlign: 'center',
-                                        py: 8
+                                        py: { xs: 6, sm: 8 }
                                     }}>
                                         <CardContent>
-                                            <NotificationsActive sx={{ fontSize: 64, color: '#333', mb: 2 }} />
-                                            <Typography variant="h6" sx={{ color: '#666', mb: 1 }}>
+                                            <NotificationsActive sx={{ fontSize: { xs: 48, sm: 64 }, color: '#333', mb: 2 }} />
+                                            <Typography sx={{ color: '#666', mb: 1, fontSize: { xs: '1rem', sm: '1.25rem' }, fontWeight: 500 }}>
                                                 No Notifications
                                             </Typography>
                                             <Typography variant="body2" sx={{ color: '#444' }}>
@@ -463,17 +468,17 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                                     boxShadow: '0 8px 24px rgba(0,229,255,0.15)'
                                                 }
                                             }}>
-                                                <CardContent sx={{ p: 2.5 }}>
-                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                                                <CardContent sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1.5, sm: 2 } }}>
                                                         <Box sx={{ 
                                                             bgcolor: 'rgba(0,229,255,0.15)', 
                                                             borderRadius: 2, 
-                                                            p: 1.5,
+                                                            p: { xs: 1, sm: 1.5 },
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center'
                                                         }}>
-                                                            <Alarm sx={{ color: '#00e5ff', fontSize: 28 }} />
+                                                            <Alarm sx={{ color: '#00e5ff', fontSize: { xs: 24, sm: 28 } }} />
                                                         </Box>
 
                                                         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -559,7 +564,7 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                 <ConfirmDialog 
                     open={confirmOpen} 
                     title="Delete Reminder" 
-                    message="Are you sure you want to delete this reminder? This action cannot be undone." 
+                    message="Are you sure you want to delete this reminder?" 
                     onConfirm={handleConfirmDelete} 
                     onCancel={() => setConfirmOpen(false)} 
                 />

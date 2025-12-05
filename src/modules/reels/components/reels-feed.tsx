@@ -11,8 +11,6 @@ import { ProfileDialog } from '@/modules/profile/components/profile-dialog'
 // Constants for pagination
 const PAGE_SIZE = 10;
 
-
-
 interface ReelsFeedProps {
   communityId?: string;
   tags?: string[];
@@ -135,50 +133,27 @@ export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFe
             const { data: { user } } = await supabase.auth.getUser();
             setUserId(user?.id || null);
 
-            // 2. Get Reels with pagination
-            // 2. Get Reels with pagination
-            let query = supabase
-              .from('reels')
-              .select(`
-                *,
-                profiles:profiles!reels_user_id_fkey (
-                  full_name,
-                  avatar_url
-                )
-              `)
-              .order('created_at', { ascending: false })
-              .range(0, PAGE_SIZE - 1);
-
-            if (communityId) {
-                // Community Feed: Show reels uploaded to this community
-                query = query.eq('community_id', communityId);
-            } else {
-                // Global Feed: Show only reels NOT associated with any community
-                query = query.is('community_id', null);
-            }
-
-            const { data: reelsData, error: reelsError } = await query;
-
-            if (reelsError) throw reelsError;
+            // 2. Get Reels with pagination via API
+            const params = new URLSearchParams({
+                page: '0',
+                pageSize: PAGE_SIZE.toString()
+            });
+            if (communityId) params.append('communityId', communityId);
+            
+            const reelsResponse = await fetch(`/api/reels?${params.toString()}`);
+            if (!reelsResponse.ok) throw new Error('Failed to fetch reels');
+            const reelsData = await reelsResponse.json();
 
             if (reelsData) {
-                const formattedReels = reelsData.map(reel => ({
-                    ...reel,
-                    user: reel.profiles?.full_name || 'Unknown User',
-                    user_avatar: reel.profiles?.avatar_url
-                }));
-                setReels(formattedReels);
+                setReels(reelsData);
                 setHasMore(reelsData.length === PAGE_SIZE);
 
-                // 3. Get Likes for this user if logged in
+                // 3. Get Likes for this user if logged in via API
                 if (user) {
-                    const { data: likesData } = await supabase
-                        .from('likes')
-                        .select('reel_id')
-                        .eq('user_id', user.id);
-                    
-                    if (likesData) {
-                        setLikedReels(new Set(likesData.map(l => l.reel_id)));
+                    const likesResponse = await fetch('/api/user/likes');
+                    if (likesResponse.ok) {
+                        const likesData = await likesResponse.json();
+                        setLikedReels(new Set(likesData.map((l: any) => l.reel_id)));
                     }
                 }
             } else {
@@ -200,45 +175,23 @@ export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFe
         
         setLoadingMore(true);
         const nextPage = page + 1;
-        const start = nextPage * PAGE_SIZE;
-        const end = start + PAGE_SIZE - 1;
 
         try {
-            let query = supabase
-                .from('reels')
-                .select(`
-                    *,
-                    profiles:profiles!reels_user_id_fkey (
-                        full_name,
-                        avatar_url
-                    )
-                `)
-                .order('created_at', { ascending: false })
-                .range(start, end);
+            const params = new URLSearchParams({
+                page: nextPage.toString(),
+                pageSize: PAGE_SIZE.toString()
+            });
+            if (communityId) params.append('communityId', communityId);
 
-            if (communityId) {
-                // Community Feed
-                query = query.eq('community_id', communityId);
-            } else {
-                // Global Feed
-                query = query.is('community_id', null);
-            }
-
-            const { data: moreReels, error } = await query;
-
-            if (error) throw error;
+            const response = await fetch(`/api/reels?${params.toString()}`);
+            if (!response.ok) throw new Error('Failed to fetch more reels');
+            const moreReels = await response.json();
 
             if (moreReels && moreReels.length > 0) {
-                const formattedReels = moreReels.map(reel => ({
-                    ...reel,
-                    user: reel.profiles?.full_name || 'Unknown User',
-                    user_avatar: reel.profiles?.avatar_url
-                }));
-                
                 // Filter out duplicates (in case realtime added some)
                 setReels(prev => {
                     const existingIds = new Set(prev.map(r => r.id));
-                    const newReels = formattedReels.filter(r => !existingIds.has(r.id));
+                    const newReels = moreReels.filter((r: any) => !existingIds.has(r.id));
                     return [...prev, ...newReels];
                 });
                 
@@ -252,7 +205,7 @@ export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFe
         } finally {
             setLoadingMore(false);
         }
-    }, [loadingMore, hasMore, page, supabase]);
+    }, [loadingMore, hasMore, page, communityId]);
 
     const handleToggleLike = async (reelId: string, isLiked: boolean) => {
         if (!userId) return;
@@ -260,7 +213,7 @@ export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFe
         if (isLiked) {
             // Add like
             setLikedReels(prev => new Set(prev).add(reelId));
-            await supabase.from('likes').insert({ user_id: userId, reel_id: reelId });
+            await fetch(`/api/reels/${reelId}/like`, { method: 'POST' });
         } else {
             // Remove like
             setLikedReels(prev => {
@@ -268,7 +221,7 @@ export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFe
                 newSet.delete(reelId);
                 return newSet;
             });
-            await supabase.from('likes').delete().match({ user_id: userId, reel_id: reelId });
+            await fetch(`/api/reels/${reelId}/like`, { method: 'DELETE' });
         }
     };
 
@@ -293,8 +246,9 @@ export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFe
     const handleConfirmDeleteReel = async () => {
         if (!deleteId) return;
 
-        const { error } = await supabase.from('reels').delete().eq('id', deleteId);
-        if (!error) {
+        const response = await fetch(`/api/reels/${deleteId}`, { method: 'DELETE' });
+        
+        if (response.ok) {
             setReels(prev => prev.filter(r => r.id !== deleteId));
         } else {
             alert('Failed to delete reel.');
@@ -498,7 +452,7 @@ export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFe
         <ConfirmDialog 
             open={confirmOpen} 
             title="Delete Reel" 
-            message="Are you sure you want to delete this reel? This action cannot be undone." 
+            message="Are you sure you want to delete this reel?" 
             onConfirm={handleConfirmDeleteReel} 
             onCancel={() => setConfirmOpen(false)} 
         />
