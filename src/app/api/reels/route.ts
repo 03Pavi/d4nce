@@ -5,6 +5,7 @@ export async function GET(request: Request) {
   const supabase = await createClient()
   const { searchParams } = new URL(request.url)
   const communityId = searchParams.get('communityId')
+  const userId = searchParams.get('userId')
   const page = parseInt(searchParams.get('page') || '0')
   const pageSize = parseInt(searchParams.get('pageSize') || '10')
 
@@ -23,7 +24,9 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: false })
     .range(start, end)
 
-  if (communityId) {
+  if (userId) {
+    query = query.eq('user_id', userId)
+  } else if (communityId) {
     query = query.eq('community_id', communityId)
   } else {
     query = query.is('community_id', null)

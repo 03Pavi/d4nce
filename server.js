@@ -102,6 +102,19 @@ app.prepare().then(() => {
         });
       });
     });
+
+    socket.on('call-response', ({ roomId, callerId, responderId, responderName, communityName, response }) => {
+      console.log(`Call ${response} by ${responderName} (${responderId}) for room ${roomId}`);
+      
+      // Notify the caller about the response
+      io.to(callerId).emit('call-response-received', {
+        roomId,
+        responderId,
+        responderName,
+        communityName,
+        response // 'accepted' or 'declined'
+      });
+    });
   });
 
   httpServer.listen(port, (err) => {

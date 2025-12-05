@@ -62,17 +62,90 @@ export const IncomingCallListener = () => {
     }
   }, [])
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     if (!incomingCall) return
     
-    const targetPage = userRole === 'admin' ? '/admin' : '/student'
-    router.push(`${targetPage}?callId=${incomingCall.roomId}&autoJoin=true&tab=live`)
-    setIncomingCall(null)
+    try {
+      // Get current user info
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+
+      // Emit Socket.IO event to notify caller
+      if (socket) {
+        socket.emit('call-response', {
+          roomId: incomingCall.roomId,
+          callerId: incomingCall.callerId,
+          responderId: user.id,
+          responderName: profile?.full_name || 'User',
+          communityName: incomingCall.communityName,
+          response: 'accepted'
+        })
+      }
+
+      // Send push notification to caller
+      const { notifyCallAccepted } = await import('@/app/actions/notifications')
+      await notifyCallAccepted(
+        profile?.full_name || 'User',
+        incomingCall.communityName,
+        incomingCall.callerId,
+        incomingCall.roomId
+      )
+
+      // Navigate to call
+      const targetPage = userRole === 'admin' ? '/admin' : '/student'
+      router.push(`${targetPage}?callId=${incomingCall.roomId}&autoJoin=true&tab=live`)
+    } catch (error) {
+      console.error('Error accepting call:', error)
+    } finally {
+      setIncomingCall(null)
+    }
   }
 
-  const handleDecline = () => {
-    setIncomingCall(null)
-    // Emit decline event if needed
+  const handleDecline = async () => {
+    if (!incomingCall) return
+
+    try {
+      // Get current user info
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+
+      // Emit Socket.IO event to notify caller
+      if (socket) {
+        socket.emit('call-response', {
+          roomId: incomingCall.roomId,
+          callerId: incomingCall.callerId,
+          responderId: user.id,
+          responderName: profile?.full_name || 'User',
+          communityName: incomingCall.communityName,
+          response: 'declined'
+        })
+      }
+
+      // Send push notification to caller
+      const { notifyCallDeclined } = await import('@/app/actions/notifications')
+      await notifyCallDeclined(
+        profile?.full_name || 'User',
+        incomingCall.communityName,
+        incomingCall.callerId,
+        incomingCall.roomId
+      )
+    } catch (error) {
+      console.error('Error declining call:', error)
+    } finally {
+      setIncomingCall(null)
+    }
   }
 
   if (!incomingCall) return null

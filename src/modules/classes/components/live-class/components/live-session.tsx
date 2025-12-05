@@ -61,13 +61,8 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
     // Auto-join session if enabled
     useEffect(() => {
         if (autoJoin && !isLive) {
-            const startSession = async () => {
-                setIsLive(true);
-                if (role === 'admin') {
-                    await notifyLiveStreamStarted(userName, sessionId);
-                }
-            };
-            startSession();
+            setIsLive(true);
+            // Don't send notification here - call invites already have their own notification
         }
     }, [autoJoin]);
 

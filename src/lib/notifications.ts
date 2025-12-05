@@ -7,6 +7,10 @@ interface NotificationOptions {
   userIds?: string[];
   data?: any;
   headings?: { [key: string]: string };
+  ios_sound?: string;
+  android_sound?: string;
+  web_push_topic?: string;
+  priority?: number;
 }
 
 export const sendNotification = async (message: string, options: NotificationOptions = {}) => {
@@ -21,6 +25,24 @@ export const sendNotification = async (message: string, options: NotificationOpt
     data: options.data,
     headings: options.headings,
   };
+
+  // Add sound if specified
+  if (options.ios_sound) {
+    payload.ios_sound = options.ios_sound;
+  }
+  if (options.android_sound) {
+    payload.android_sound = options.android_sound;
+  }
+
+  // Add priority if specified
+  if (options.priority) {
+    payload.priority = options.priority;
+  }
+
+  // Add web push topic if specified
+  if (options.web_push_topic) {
+    payload.web_push_topic = options.web_push_topic;
+  }
 
   if (options.userIds && options.userIds.length > 0) {
     // Target specific users by their external_id (set via OneSignal.login)

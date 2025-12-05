@@ -30,10 +30,14 @@ export async function notifyNewReel(uploaderName: string, reelId: string) {
 
 export async function notifyCallInvite(callerName: string, communityName: string, receiverIds: string[], roomId: string) {
   try {
-    await sendNotification(`${callerName} is inviting you to a video call in ${communityName}`, {
-      headings: { en: "Incoming Video Call" },
+    await sendNotification(`${callerName} is calling you in ${communityName}`, {
+      headings: { en: "📞 Incoming Call" },
       userIds: receiverIds,
       data: { type: 'call_invite', roomId, communityName },
+      ios_sound: 'notification.wav',
+      android_sound: 'notification',
+      web_push_topic: 'call_invite',
+      priority: 10,
     });
     return { success: true };
   } catch (error) {
@@ -52,6 +56,40 @@ export async function notifyNewMessage(senderName: string, communityName: string
     return { success: true };
   } catch (error) {
     console.error("Failed to notify new message:", error);
+    return { success: false, error };
+  }
+}
+
+export async function notifyCallAccepted(userName: string, communityName: string, callerId: string, roomId: string) {
+  try {
+    await sendNotification(`${userName} accepted your call in ${communityName}`, {
+      headings: { en: "✅ Call Accepted" },
+      userIds: [callerId],
+      data: { type: 'call_accepted', roomId, communityName },
+      ios_sound: 'notification.wav',
+      android_sound: 'notification',
+      priority: 10,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to notify call accepted:", error);
+    return { success: false, error };
+  }
+}
+
+export async function notifyCallDeclined(userName: string, communityName: string, callerId: string, roomId: string) {
+  try {
+    await sendNotification(`${userName} declined your call in ${communityName}`, {
+      headings: { en: "❌ Call Declined" },
+      userIds: [callerId],
+      data: { type: 'call_declined', roomId, communityName },
+      ios_sound: 'notification.wav',
+      android_sound: 'notification',
+      priority: 8,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to notify call declined:", error);
     return { success: false, error };
   }
 }

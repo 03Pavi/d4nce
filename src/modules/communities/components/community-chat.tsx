@@ -12,6 +12,11 @@ interface CommunityChatProps {
   currentUserId: string
 }
 
+// Idle time in milliseconds (1-3 minutes configurable)
+const IDLE_TIME_MIN = 1 * 60 * 1000 // 1 minute
+const IDLE_TIME_MAX = 3 * 60 * 1000 // 3 minutes
+const IDLE_SYNC_TIME = 2 * 60 * 1000 // 2 minutes (middle value)
+
 export const CommunityChat = ({ communityId, communityName, currentUserId }: CommunityChatProps) => {
   const [messages, setMessages] = useState<CommunityMessage[]>([])
   const [newMessage, setNewMessage] = useState('')
@@ -20,21 +25,73 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<Socket | null>(null)
   const unsyncedCountRef = useRef(0)
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const lastActivityRef = useRef<number>(Date.now())
   const router = useRouter()
 
   useEffect(() => {
     initChat()
     
+    // Sync messages when user leaves the page/tab
+    const handleBeforeUnload = async () => {
+      console.log('🚪 User leaving, syncing messages...')
+      await syncMessages()
+    }
+
+    // Sync messages when user switches tabs or minimizes browser
+    const handleVisibilityChange = async () => {
+      if (document.hidden) {
+        console.log('👁️ Tab hidden, syncing messages...')
+        await syncMessages()
+      }
+    }
+
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
     return () => {
+      // Sync messages when component unmounts (user navigates away)
+      console.log('🚪 Component unmounting, syncing messages...')
+      syncMessages()
+      
       if (socketRef.current) {
         socketRef.current.disconnect()
       }
+      // Clear idle timer on unmount
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current)
+      }
+      
+      // Remove event listeners
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [communityId])
 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Start idle timer for syncing
+  const startIdleTimer = () => {
+    // Clear existing timer
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current)
+    }
+    
+    // Set new timer
+    lastActivityRef.current = Date.now()
+    idleTimerRef.current = setTimeout(async () => {
+      const idleTime = Date.now() - lastActivityRef.current
+      
+      // If idle for the configured time, sync to Supabase
+      if (idleTime >= IDLE_SYNC_TIME) {
+        console.log('Community idle for 2 minutes, syncing messages to Supabase...')
+        await syncMessages()
+      }
+    }, IDLE_SYNC_TIME)
+  }
 
   const initChat = async () => {
     try {
@@ -59,24 +116,51 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
         const res = await fetch(`/api/communities/messages?communityId=${communityId}`)
         if (res.ok) {
           const serverMessages = await res.json()
-          // Store in IndexedDB
+          // Store in IndexedDB with community_id and update state
+          const messagesWithCommunityId = []
           for (const msg of serverMessages) {
-            await messageDB.addMessage({ ...msg, synced: true })
+            const messageWithId = { 
+              ...msg, 
+              community_id: communityId, // Ensure community_id is set
+              synced: true 
+            }
+            await messageDB.addMessage(messageWithId)
+            messagesWithCommunityId.push(messageWithId)
           }
-          setMessages(serverMessages)
+          setMessages(messagesWithCommunityId)
         }
       }
       
       // Connect to Socket.IO
       socketRef.current = io({ path: '/socket.io' })
       
+      // Add connection event listeners for debugging
+      socketRef.current.on('connect', () => {
+        console.log('✅ Socket.IO connected:', socketRef.current?.id)
+      })
+      
+      socketRef.current.on('connect_error', (error) => {
+        console.error('❌ Socket.IO connection error:', error)
+      })
+      
+      socketRef.current.on('disconnect', (reason) => {
+        console.log('🔌 Socket.IO disconnected:', reason)
+      })
+      
       socketRef.current.emit('join-community-chat', { communityId, userId: currentUserId })
+      console.log(`📡 Joined community chat: ${communityId}`)
       
       socketRef.current.on('new-community-message', async (message: CommunityMessage) => {
+        console.log('📨 Received new message:', message)
         // Add to IndexedDB
         await messageDB.addMessage({ ...message, synced: true })
         setMessages(prev => [...prev, message])
+        // Reset idle timer on new message
+        startIdleTimer()
       })
+      
+      // Start idle timer
+      startIdleTimer()
       
     } catch (error) {
       console.error('Error initializing chat:', error)
@@ -94,6 +178,8 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
       const unsyncedMessages = await messageDB.getUnsyncedMessages(communityId)
       
       if (unsyncedMessages.length > 0) {
+        console.log(`Syncing ${unsyncedMessages.length} messages to Supabase...`)
+        
         const messagesToSync = unsyncedMessages.map(msg => ({
           community_id: msg.community_id,
           user_id: msg.user_id,
@@ -110,7 +196,9 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
         if (res.ok) {
           const messageIds = unsyncedMessages.map(m => m.id)
           await messageDB.markAsSynced(messageIds)
-          unsyncedCountRef.current = 0
+          console.log(`Successfully synced ${unsyncedMessages.length} messages`)
+        } else {
+          console.error('Failed to sync messages:', await res.text())
         }
       }
     } catch (error) {
@@ -141,19 +229,21 @@ export const CommunityChat = ({ communityId, communityName, currentUserId }: Com
       
       // Emit via Socket.IO for real-time
       if (socketRef.current) {
+        console.log('📤 Sending message via Socket.IO:', {
+          communityId,
+          messageId: message.id,
+          connected: socketRef.current.connected
+        })
         socketRef.current.emit('send-community-message', {
           communityId,
           message
         })
+      } else {
+        console.error('❌ Socket not connected, message not sent in real-time')
       }
       
-      // Track unsynced count
-      unsyncedCountRef.current++
-      
-      // Sync to Supabase every 25 messages
-      if (unsyncedCountRef.current >= 25) {
-        await syncMessages()
-      }
+      // Reset idle timer - will sync to Supabase if idle for 2 minutes
+      startIdleTimer()
       
       setNewMessage('')
     } catch (error) {
