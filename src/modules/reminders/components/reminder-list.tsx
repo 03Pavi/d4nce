@@ -1,14 +1,18 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import { Box, Typography, Button, Snackbar, Alert, Card, CardContent, Chip, Fade, Container, CircularProgress, IconButton } from '@mui/material'
-import { Delete, Add, Alarm, NotificationsActive, AccessTime, Group, Refresh } from '@mui/icons-material'
+import { useRouter } from 'next/navigation';
+import { Delete, Add, Alarm, NotificationsActive, AccessTime, Group, Refresh, Videocam, Check, Close } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import { createClient } from '@/lib/supabase/client';
 import { AddReminderDialog } from './add-reminder-dialog';
 import { PushNotificationDialog } from './push-notification-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+
+dayjs.extend(relativeTime);
 
 interface Reminder {
     id: string;
@@ -23,23 +27,28 @@ interface ReminderListProps {
 
 export const ReminderList = ({ role }: ReminderListProps) => {
     const [reminders, setReminders] = useState<Reminder[]>([]);
+    const [callInvites, setCallInvites] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
     
     // Admin features
     const [notificationOpen, setNotificationOpen] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
     const supabase = createClient();
+    const router = useRouter();
 
     useEffect(() => {
         fetchReminders();
+        fetchCallInvites();
         requestNotificationPermission();
         cleanupExpiredReminders();
         const interval = setInterval(cleanupExpiredReminders, 60000);
 
-        // Realtime subscription
-        const channel = supabase
+        // Realtime subscription for reminders
+        const remindersChannel = supabase
             .channel('reminders')
             .on(
                 'postgres_changes',
@@ -56,8 +65,42 @@ export const ReminderList = ({ role }: ReminderListProps) => {
             )
             .subscribe();
 
+        // Realtime subscription for call invites
+        const invitesChannel = supabase
+            .channel('call_invites')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'call_invites' },
+                async (payload) => {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return;
+
+                    if (payload.eventType === 'INSERT' && payload.new.receiver_id === user.id && payload.new.status === 'pending') {
+                        // Fetch details for the new invite
+                        const { data: inviteData } = await supabase
+                            .from('call_invites')
+                            .select(`
+                                *,
+                                communities (name),
+                                profiles:caller_id (full_name, avatar_url)
+                            `)
+                            .eq('id', payload.new.id)
+                            .single();
+                        
+                        if (inviteData) {
+                            setCallInvites(prev => [inviteData, ...prev]);
+                            showNotification('Incoming Video Call', `${inviteData.profiles.full_name} is inviting you to a call in ${inviteData.communities.name}`);
+                        }
+                    } else if (payload.eventType === 'UPDATE' && payload.new.receiver_id === user.id && payload.new.status !== 'pending') {
+                        setCallInvites(prev => prev.filter(i => i.id !== payload.new.id));
+                    }
+                }
+            )
+            .subscribe();
+
         return () => {
-            supabase.removeChannel(channel);
+            supabase.removeChannel(remindersChannel);
+            supabase.removeChannel(invitesChannel);
             clearInterval(interval);
         };
     }, []);
@@ -89,6 +132,47 @@ export const ReminderList = ({ role }: ReminderListProps) => {
             setReminders(data);
         }
         setLoading(false);
+    };
+
+    const fetchCallInvites = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from('call_invites')
+            .select(`
+                *,
+                communities (name),
+                profiles:caller_id (full_name, avatar_url)
+            `)
+            .eq('receiver_id', user.id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+
+        if (data) {
+            setCallInvites(data);
+        }
+    };
+
+    const handleAcceptCall = async (invite: any) => {
+        // Update status
+        await supabase
+            .from('call_invites')
+            .update({ status: 'accepted' })
+            .eq('id', invite.id);
+        
+        // Navigate to call
+        // Assuming we route to the student page with callId
+        router.push(`/${role === 'admin' ? 'admin' : 'student'}?callId=${invite.room_id}&autoJoin=true`);
+    };
+
+    const handleRejectCall = async (inviteId: string) => {
+        await supabase
+            .from('call_invites')
+            .update({ status: 'rejected' })
+            .eq('id', inviteId);
+        
+        setCallInvites(prev => prev.filter(i => i.id !== inviteId));
     };
 
     const requestNotificationPermission = async () => {
@@ -131,9 +215,6 @@ export const ReminderList = ({ role }: ReminderListProps) => {
         }
     }
 
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [deleteId, setDeleteId] = useState<string | null>(null);
-
     const handleDeleteClick = (id: string) => {
         setDeleteId(id);
         setConfirmOpen(true);
@@ -165,11 +246,9 @@ export const ReminderList = ({ role }: ReminderListProps) => {
         setNotificationOpen(false);
     }
 
-
-
-// ... (inside component)
     const handleRefresh = async () => {
         await fetchReminders();
+        await fetchCallInvites();
     };
 
     return (
@@ -188,10 +267,10 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                 <Box>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                                         <Typography variant="h5" fontWeight="bold">
-                                            {role === 'admin' ? 'Manage Reminders' : 'Class Reminders'}
+                                            {role === 'admin' ? 'Manage Notifications' : 'Notifications'}
                                         </Typography>
                                         <IconButton 
-                                            onClick={fetchReminders} 
+                                            onClick={handleRefresh} 
                                             size="small"
                                             sx={{ 
                                                 color: '#888', 
@@ -203,8 +282,8 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                     </Box>
                                     <Typography variant="body2" sx={{ color: '#888' }}>
                                         {role === 'admin' 
-                                            ? 'Create and manage reminders for students'
-                                            : 'Stay updated with your class schedule'
+                                            ? 'Manage alerts, reminders, and announcements'
+                                            : 'Stay updated with your classes, calls, and alerts'
                                         }
                                     </Typography>
                                 </Box>
@@ -257,10 +336,85 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                 {/* Scrollable List Section */}
                 <Box sx={{ flex: 1, overflowY: 'auto' }}>
                         <Container maxWidth="lg" sx={{ pb: 4 }}>
+                            {/* Call Invites Section */}
+                            {callInvites.length > 0 && (
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h6" sx={{ color: 'white', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Videocam sx={{ color: '#ff0055' }} />
+                                        Pending Video Calls
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        {callInvites.map((invite) => (
+                                            <Fade in={true} key={invite.id}>
+                                                <Card sx={{ 
+                                                    bgcolor: 'rgba(255,0,85,0.1)', 
+                                                    border: '1px solid #ff0055',
+                                                    boxShadow: '0 0 20px rgba(255,0,85,0.2)'
+                                                }}>
+                                                    <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, '&:last-child': { pb: 2 } }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                            <Box sx={{ position: 'relative' }}>
+                                                                <img 
+                                                                    src={invite.profiles.avatar_url || '/default-avatar.png'} 
+                                                                    alt={invite.profiles.full_name}
+                                                                    style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} 
+                                                                />
+                                                                <Box sx={{ 
+                                                                    position: 'absolute', 
+                                                                    bottom: 0, 
+                                                                    right: 0, 
+                                                                    width: 12, 
+                                                                    height: 12, 
+                                                                    bgcolor: '#4caf50', 
+                                                                    borderRadius: '50%', 
+                                                                    border: '2px solid black' 
+                                                                }} />
+                                                            </Box>
+                                                            <Box>
+                                                                <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'white' }}>
+                                                                    {invite.profiles.full_name}
+                                                                </Typography>
+                                                                <Typography variant="body2" sx={{ color: '#ccc' }}>
+                                                                    Invited you to a call in <span style={{ color: '#ff0055' }}>{invite.communities.name}</span>
+                                                                </Typography>
+                                                                <Typography variant="caption" sx={{ color: '#888' }}>
+                                                                    {dayjs(invite.created_at).fromNow()}
+                                                                </Typography>
+                                                            </Box>
+                                                        </Box>
+                                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                                            <Button 
+                                                                variant="outlined" 
+                                                                color="error" 
+                                                                size="small"
+                                                                startIcon={<Close />}
+                                                                onClick={() => handleRejectCall(invite.id)}
+                                                            >
+                                                                Reject
+                                                            </Button>
+                                                            <Button 
+                                                                variant="contained" 
+                                                                color="success" 
+                                                                size="small"
+                                                                startIcon={<Check />}
+                                                                onClick={() => handleAcceptCall(invite)}
+                                                                sx={{ bgcolor: '#00e676', '&:hover': { bgcolor: '#00c853' } }}
+                                                            >
+                                                                Accept
+                                                            </Button>
+                                                        </Box>
+                                                    </CardContent>
+                                                </Card>
+                                            </Fade>
+                                        ))}
+                                    </Box>
+                                </Box>
+                            )}
+
                             {/* Reminders List */}
                             {loading ? (
                                     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress color="secondary" /></Box>
-                            ) : reminders.length === 0 ? (
+                            ) : reminders.length === 0 && callInvites.length === 0 ? (
                                 <Fade in={true}>
                                     <Card sx={{ 
                                         bgcolor: 'rgba(255,255,255,0.03)', 
@@ -269,9 +423,12 @@ export const ReminderList = ({ role }: ReminderListProps) => {
                                         py: 8
                                     }}>
                                         <CardContent>
-                                            <Alarm sx={{ fontSize: 64, color: '#333', mb: 2 }} />
+                                            <NotificationsActive sx={{ fontSize: 64, color: '#333', mb: 2 }} />
                                             <Typography variant="h6" sx={{ color: '#666', mb: 1 }}>
-                                                No Reminders Yet
+                                                No Notifications
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ color: '#444' }}>
+                                                You're all caught up!
                                             </Typography>
                                             {role === 'admin' && (
                                                 <Button 

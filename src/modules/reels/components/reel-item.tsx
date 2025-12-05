@@ -76,7 +76,7 @@ export const ReelItem = ({ reel, isActive, userId, likedReels, onToggleLike, onO
       if (navigator.share) {
           try {
               await navigator.share({
-                  title: 'Check out this reel on D4NCE!',
+                  title: 'Check out this reel on COZYTRIBE!',
                   text: reel.description,
                   url: window.location.href, // Ideally deep link to reel
               });

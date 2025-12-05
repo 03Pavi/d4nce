@@ -12,10 +12,12 @@ import {
   CircularProgress,
   IconButton,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Autocomplete
 } from '@mui/material'
-import { CloudUpload, Close, Delete, MovieFilter } from '@mui/icons-material'
+import { CloudUpload, Close, Delete, MovieFilter, Groups } from '@mui/icons-material'
 import { createClient } from '@/lib/supabase/client'
+import { notifyNewReel } from '@/app/actions/notifications';
 
 interface UploadReelDialogProps {
   open: boolean
@@ -29,9 +31,53 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
   const [description, setDescription] = useState('')
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [communities, setCommunities] = useState<{id: string, name: string}[]>([])
+  const [selectedCommunity, setSelectedCommunity] = useState<{id: string, name: string} | null>(null)
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const supabase = createClient()
+
+  React.useEffect(() => {
+    if (open) {
+      fetchCommunities()
+    }
+  }, [open])
+
+  const fetchCommunities = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Fetch communities where user is a member
+      const { data: memberData } = await supabase
+        .from('community_members')
+        .select(`
+          community_id,
+          communities (
+            id,
+            name
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'approved')
+
+      // Fetch communities where user is admin
+      const { data: adminData } = await supabase
+        .from('communities')
+        .select('id, name')
+        .eq('admin_id', user.id)
+
+      const memberCommunities = memberData?.map((d: any) => d.communities) || []
+      const adminCommunities = adminData || []
+      
+      // Combine and deduplicate
+      const allCommunities = [...adminCommunities, ...memberCommunities].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+      
+      setCommunities(allCommunities)
+    } catch (error) {
+      console.error('Error fetching communities:', error)
+    }
+  }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -79,17 +125,25 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
         .getPublicUrl(fileName)
 
       // 4. Insert record into database
-      const { error: dbError } = await supabase
+      const { data: insertedReel, error: dbError } = await supabase
         .from('reels')
         .insert({
           user_id: userId,
           url: publicUrl,
           description: description,
+          community_id: selectedCommunity?.id || null,
           likes_count: 0,
           comments_count: 0
         })
+        .select()
+        .single()
 
       if (dbError) throw dbError
+
+      // Notify
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
+      const uploaderName = profile?.full_name || 'Someone';
+      await notifyNewReel(uploaderName, insertedReel.id);
 
       // Success
       onUploadSuccess()
@@ -106,6 +160,7 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
     setFile(null)
     setPreviewUrl(null)
     setDescription('')
+    setSelectedCommunity(null)
     setError(null)
     onClose()
   }
@@ -233,6 +288,43 @@ export const UploadReelDialog = ({ open, onClose, onUploadSuccess }: UploadReelD
               '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
               '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' }
             }}
+          />
+
+          <Autocomplete
+            options={communities}
+            getOptionLabel={(option) => option.name}
+            value={selectedCommunity}
+            onChange={(event, newValue) => setSelectedCommunity(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Post to Community (Optional)"
+                placeholder="Select a community or leave empty for Global"
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    color: 'white',
+                    bgcolor: 'rgba(255,255,255,0.03)',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
+                    '&:hover fieldset': { borderColor: '#666' },
+                    '&.Mui-focused fieldset': { borderColor: 'var(--primary)' },
+                  },
+                  '& .MuiInputLabel-root': { color: 'var(--text-secondary)' },
+                  '& .MuiInputLabel-root.Mui-focused': { color: 'var(--primary)' }
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+                <li {...props} style={{ backgroundColor: '#1a1a1a', color: 'white' }}>
+                    <Groups sx={{ mr: 2, color: '#ff0055' }} />
+                    {option.name}
+                </li>
+            )}
+            PaperComponent={({ children }) => (
+                <Box sx={{ bgcolor: '#1a1a1a', color: 'white', border: '1px solid #333' }}>
+                    {children}
+                </Box>
+            )}
           />
 
           {error && (

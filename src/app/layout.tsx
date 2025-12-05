@@ -2,36 +2,39 @@
 import type { Metadata, Viewport } from "next";
 import StoreProvider from "@/shared/providers/store-provider";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { IncomingCallListener } from "@/components/incoming-call-listener";
+import { OneSignalManager } from "@/components/one-signal-manager";
+import Script from "next/script";
 import "./globals.scss";
 
 import ThemeProvider from "@/shared/providers/theme-provider";
 
 export const metadata: Metadata = {
-  title: "D4NCE",
-  description: "The ultimate video dance class experience.",
+  title: "CozyTribe",
+  description: "The ultimate cozy experience.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/icon.png",
-    apple: "/icons/icon.png",
+    icon: "/cozy-logo.svg",
+    apple: "/cozy-logo.svg",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "D4NCE",
+    title: "CozyTribe",
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: "website",
-    siteName: "D4NCE",
-    title: "D4NCE - Dance Class Platform",
-    description: "The ultimate video dance class experience with live sessions, reminders, and reels",
+    siteName: "CozyTribe",
+    title: "CozyTribe - Cozy Experience",
+    description: "The ultimate cozy experience.",
   },
   twitter: {
     card: "summary",
-    title: "D4NCE - Dance Class Platform",
-    description: "The ultimate video dance class experience with live sessions, reminders, and reels",
+    title: "CozyTribe - Cozy Experience",
+    description: "The ultimate cozy experience.",
   },
 };
 
@@ -54,7 +57,23 @@ export default function RootLayout({
         <StoreProvider>
           <ThemeProvider>
             {children}
+            <IncomingCallListener />
+            <OneSignalManager />
             <InstallPrompt />
+            <Script 
+              src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" 
+              strategy="afterInteractive" 
+            />
+            <Script id="onesignal-init" strategy="afterInteractive">
+              {`
+                window.OneSignalDeferred = window.OneSignalDeferred || [];
+                OneSignalDeferred.push(async function(OneSignal) {
+                  await OneSignal.init({
+                    appId: "af9c3011-df39-423c-a2fa-832d24775f98",
+                  });
+                });
+              `}
+            </Script>
           </ThemeProvider>
         </StoreProvider>
       </body>

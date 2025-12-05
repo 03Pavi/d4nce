@@ -1,6 +1,6 @@
 {
-  "name": "D4NCE",
-  "short_name": "D4NCE",
+  "name": "CozyTribe",
+  "short_name": "CozyTribe",
   "description": "The ultimate video dance class experience.",
   "start_url": "/",
   "display": "standalone",
@@ -8,14 +8,9 @@
   "theme_color": "#ff0055",
   "icons": [
     {
-      "src": "/icons/icon.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/cozy-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }

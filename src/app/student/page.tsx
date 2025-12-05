@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect, useTransition } from 'react'
 import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Badge, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider } from '@mui/material'
-import { LiveTv, VideoLibrary, AddCircle, Logout, LibraryBooks, Notifications, Person, Menu as MenuIcon } from '@mui/icons-material'
+import { LiveTv, VideoLibrary, AddCircle, Logout, LibraryBooks, Notifications, Person, Menu as MenuIcon, Groups } from '@mui/icons-material'
 import { LiveSession } from '@/modules/classes/components/live-class/components/live-session'
 import { ReminderList } from '@/modules/reminders/components/reminder-list'
 import { ReelsFeed } from '@/modules/reels/components/reels-feed'
@@ -9,6 +9,7 @@ import { UploadReelDialog } from '@/modules/reels/components/upload-reel-dialog'
 import { StudentClassesView } from '@/modules/classes/components/student-classes-view'
 import { ProfileView } from '@/modules/profile/components/profile-view'
 import { RecordingsList } from '@/modules/recordings/components/recordings-list'
+import { CommunitiesList } from '@/modules/communities/components/communities-list'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -55,8 +56,12 @@ const StudentPage = () => {
       const tab = searchParams.get('tab');
       const reelId = searchParams.get('reelId');
       const session = searchParams.get('session');
+      const callId = searchParams.get('callId');
 
-      if (session) {
+      if (callId) {
+          setCurrentSessionId(callId);
+          setValue(0); // Switch to Live tab
+      } else if (session) {
           setCurrentSessionId(session);
       } else {
           setCurrentSessionId('public-stream');
@@ -70,7 +75,9 @@ const StudentPage = () => {
           if (tab === 'reels') setValue(3);
           if (tab === 'my-classes') setValue(4);
           if (tab === 'profile') setValue(5);
+          if (tab === 'profile') setValue(5);
           if (tab === 'recordings') setValue(6);
+          if (tab === 'communities') setValue(7);
       }
   }, [searchParams]);
 
@@ -91,7 +98,9 @@ const StudentPage = () => {
           if (newValue === 3) newUrl.searchParams.set('tab', 'reels');
           if (newValue === 4) newUrl.searchParams.set('tab', 'my-classes');
           if (newValue === 5) newUrl.searchParams.set('tab', 'profile');
+          if (newValue === 5) newUrl.searchParams.set('tab', 'profile');
           if (newValue === 6) newUrl.searchParams.set('tab', 'recordings');
+          if (newValue === 7) newUrl.searchParams.set('tab', 'communities');
           
           if (newValue !== 3) newUrl.searchParams.delete('reelId');
           if (newValue !== 0) newUrl.searchParams.delete('session');
@@ -138,7 +147,7 @@ const StudentPage = () => {
                 <MenuIcon />
             </IconButton>
             <Typography variant="h6" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #ff0055, #ff00aa)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', ml: 1 }}>
-                D4NCE
+                COZYTRIBE
             </Typography>
           </Box>
 
@@ -236,6 +245,12 @@ const StudentPage = () => {
                     <ListItemText primary="Recordings" sx={{ color: value === 6 ? '#ff0055' : 'white' }} />
                 </ListItemButton>
             </ListItem>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(7); setMobileOpen(false); }} selected={value === 7}>
+                    <ListItemIcon sx={{ color: value === 7 ? '#ff0055' : '#888' }}><Groups /></ListItemIcon>
+                    <ListItemText primary="Communities" sx={{ color: value === 7 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
             <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
             <ListItem disablePadding>
                 <ListItemButton onClick={handleLogout}>
@@ -256,6 +271,7 @@ const StudentPage = () => {
         {value === 4 && <StudentClassesView />}
         {value === 5 && <ProfileView />}
         {value === 6 && <RecordingsList role="student" />}
+        {value === 7 && <CommunitiesList />}
       </Box>
       
       {/* Bottom Navigation */}
@@ -272,6 +288,7 @@ const StudentPage = () => {
           }}
         >
           <BottomNavigationAction label="Live" value={0} icon={<LiveTv />} />
+          <BottomNavigationAction label="Communities" value={7} icon={<Groups />} />
           
           <BottomNavigationAction 
             label="Create" 

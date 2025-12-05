@@ -67,14 +67,17 @@ const LoginPage = () => {
             border: '1px solid rgba(255, 255, 255, 0.1)'
         }}
       >
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <img src="/cozy-logo.svg" alt="CozyTribe Logo" style={{ width: 60, height: 60 }} />
+        </Box>
         <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold', textAlign: 'center' }}>
-            Login to <span style={{ color: 'var(--primary)' }}>D4NCE</span>
+            Login to <span style={{ color: 'var(--primary)' }}>CozyTribe</span>
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         {/* Google Sign-In Button */}
-        <Button
+        {/* <Button
           type="button"
           variant="outlined"
           fullWidth
@@ -108,7 +111,7 @@ const LoginPage = () => {
           <Typography variant="body2" sx={{ color: 'var(--text-secondary)', px: 1 }}>
             or
           </Typography>
-        </Divider>
+        </Divider> */}
 
         <TextField
             name="email"

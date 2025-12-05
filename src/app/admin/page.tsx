@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect, useTransition } from 'react'
 import { Box, BottomNavigation, BottomNavigationAction, Paper, IconButton, CircularProgress, Avatar, Typography, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Divider } from '@mui/material'
-import { LiveTv, VideoLibrary, AddCircle, Logout, ManageAccounts, Notifications, Person, Menu as MenuIcon } from '@mui/icons-material'
+import { LiveTv, VideoLibrary, AddCircle, Logout, ManageAccounts, Notifications, Person, Menu as MenuIcon, Groups } from '@mui/icons-material'
 import { LiveSession } from '@/modules/classes/components/live-class/components/live-session'
 import { ReminderList } from '@/modules/reminders/components/reminder-list'
 import { ReelsFeed } from '@/modules/reels/components/reels-feed'
@@ -9,6 +9,7 @@ import { UploadReelDialog } from '@/modules/reels/components/upload-reel-dialog'
 import { ClassesManagement } from '@/modules/classes/components/classes-management'
 import { ProfileView } from '@/modules/profile/components/profile-view'
 import { RecordingsList } from '@/modules/recordings/components/recordings-list'
+import { CommunityManagement } from '@/modules/communities/components/community-management'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -55,8 +56,12 @@ const AdminPage = () => {
       const tab = searchParams.get('tab');
       const reelId = searchParams.get('reelId');
       const session = searchParams.get('session');
+      const callId = searchParams.get('callId');
 
-      if (session) {
+      if (callId) {
+          setCurrentSessionId(callId);
+          setValue(0); // Switch to Live tab
+      } else if (session) {
           setCurrentSessionId(session);
       } else {
           setCurrentSessionId('public-stream');
@@ -70,7 +75,10 @@ const AdminPage = () => {
           if (tab === 'reels') setValue(4);
           if (tab === 'manage-classes') setValue(5);
           if (tab === 'profile') setValue(6);
+          if (tab === 'manage-classes') setValue(5);
+          if (tab === 'profile') setValue(6);
           if (tab === 'recordings') setValue(7);
+          if (tab === 'community') setValue(8);
       }
   }, [searchParams]);
 
@@ -94,7 +102,10 @@ const AdminPage = () => {
           if (newValue === 4) newUrl.searchParams.set('tab', 'reels');
           if (newValue === 5) newUrl.searchParams.set('tab', 'manage-classes');
           if (newValue === 6) newUrl.searchParams.set('tab', 'profile');
+          if (newValue === 5) newUrl.searchParams.set('tab', 'manage-classes');
+          if (newValue === 6) newUrl.searchParams.set('tab', 'profile');
           if (newValue === 7) newUrl.searchParams.set('tab', 'recordings');
+          if (newValue === 8) newUrl.searchParams.set('tab', 'community');
           
           if (newValue !== 4) newUrl.searchParams.delete('reelId');
           if (newValue !== 0) newUrl.searchParams.delete('session');
@@ -141,7 +152,7 @@ const AdminPage = () => {
                 <MenuIcon />
             </IconButton>
             <Typography variant="h6" sx={{ fontWeight: 'bold', background: 'linear-gradient(45deg, #ff0055, #ff00aa)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', ml: 1 }}>
-                D4NCE <Typography component="span" variant="caption" sx={{ color: '#666', ml: 1 }}>ADMIN</Typography>
+                COZYTRIBE <Typography component="span" variant="caption" sx={{ color: '#666', ml: 1 }}>ADMIN</Typography>
             </Typography>
           </Box>
 
@@ -161,11 +172,19 @@ const AdminPage = () => {
                 <Notifications />
               </IconButton>
 
+
               <IconButton 
                 onClick={() => handleTabChange(7)} 
                 sx={{ color: value === 7 ? '#ff0055' : 'var(--text-secondary)' }}
               >
                 <VideoLibrary />
+              </IconButton>
+
+              <IconButton 
+                onClick={() => handleTabChange(8)} 
+                sx={{ color: value === 8 ? '#ff0055' : 'var(--text-secondary)' }}
+              >
+                <Groups />
               </IconButton>
 
               <IconButton 
@@ -239,6 +258,12 @@ const AdminPage = () => {
                     <ListItemText primary="Recordings" sx={{ color: value === 7 ? '#ff0055' : 'white' }} />
                 </ListItemButton>
             </ListItem>
+            <ListItem disablePadding>
+                <ListItemButton onClick={() => { handleTabChange(8); setMobileOpen(false); }} selected={value === 8}>
+                    <ListItemIcon sx={{ color: value === 8 ? '#ff0055' : '#888' }}><Groups /></ListItemIcon>
+                    <ListItemText primary="Community" sx={{ color: value === 8 ? '#ff0055' : 'white' }} />
+                </ListItemButton>
+            </ListItem>
             <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)' }} />
             <ListItem disablePadding>
                 <ListItemButton onClick={handleLogout}>
@@ -264,6 +289,7 @@ const AdminPage = () => {
         {value === 5 && <ClassesManagement />}
         {value === 6 && <ProfileView />}
         {value === 7 && <RecordingsList role="admin" />}
+        {value === 8 && <CommunityManagement />}
       </Box>
       
       {/* Bottom Navigation */}

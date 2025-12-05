@@ -42,7 +42,7 @@ export const InstallPrompt = () => {
           </Button>
         }
       >
-        Install D4NCE app for better experience!
+        Install COZYTRIBE app for better experience!
       </Alert>
     </Snackbar>
   );

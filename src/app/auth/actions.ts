@@ -42,6 +42,8 @@ export async function signup(formData: FormData) {
       data: {
         full_name: fullName,
         role: role || 'student',
+        community_name: formData.get('communityName') as string,
+        tags: formData.get('tags') ? JSON.parse(formData.get('tags') as string) : [],
       },
     },
   })

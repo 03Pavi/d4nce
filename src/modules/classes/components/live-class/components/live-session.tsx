@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Box, Button, Typography, Container, IconButton, Chip } from '@mui/material'
-import { Videocam, Mic, VideocamOff, GridView, ChatBubble, MicOff, RadioButtonChecked, StopCircle } from '@mui/icons-material'
+import { Videocam, Mic, VideocamOff, GridView, ChatBubble, MicOff, RadioButtonChecked, StopCircle, Share } from '@mui/icons-material'
 import { useLiveStream } from '../hooks/use-live-stream'
 import { createClient } from '@/lib/supabase/client'
 import { LiveSessionChat } from './live-session-chat'
 import { LiveSessionGrid } from './live-session-grid'
 import { SaveRecordingDialog } from './save-recording-dialog'
+import { notifyLiveStreamStarted } from '@/app/actions/notifications';
 
 interface LiveSessionProps {
     role: 'admin' | 'student';
@@ -13,9 +14,10 @@ interface LiveSessionProps {
     hasPurchased?: boolean;
     sessionId?: string;
     isPip?: boolean;
+    autoJoin?: boolean;
 }
 
-export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessionId = 'class-1', isPip = false }: LiveSessionProps) => {
+export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessionId = 'class-1', isPip = false, autoJoin = false }: LiveSessionProps) => {
     const [userName, setUserName] = useState<string>(role === 'admin' ? 'Instructor' : 'Student');
     const [isLive, setIsLive] = useState(false); 
     
@@ -49,12 +51,25 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
     const [pinnedStreamId, setPinnedStreamId] = useState<string | null>(null);
     const [showGrid, setShowGrid] = useState(false);
     
-    const [showChat, setShowChat] = useState(true);
+    const [showChat, setShowChat] = useState(false);
     const [isMuted, setIsMuted] = useState(true);
     const [isVideoStopped, setIsVideoStopped] = useState(true);
 
     const toggleMute = () => setIsMuted(!isMuted);
     const toggleVideo = () => setIsVideoStopped(!isVideoStopped);
+
+    // Auto-join session if enabled
+    useEffect(() => {
+        if (autoJoin && !isLive) {
+            const startSession = async () => {
+                setIsLive(true);
+                if (role === 'admin') {
+                    await notifyLiveStreamStarted(userName, sessionId);
+                }
+            };
+            startSession();
+        }
+    }, [autoJoin]);
 
     useEffect(() => {
         if (localStream) {
@@ -277,8 +292,19 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                             <Typography variant="h6" color="text.secondary">
                                 Ready to join the session?
                             </Typography>
-                            <Button variant="contained" color="error" startIcon={<Videocam />} onClick={() => setIsLive(true)} sx={{ mt: 2 }}>
-                                Join Class
+                            <Button 
+                                variant="contained" 
+                                color="error" 
+                                startIcon={<Videocam />} 
+                                onClick={async () => {
+                                    setIsLive(true);
+                                    if (role === 'admin') {
+                                        await notifyLiveStreamStarted(userName, sessionId);
+                                    }
+                                }} 
+                                sx={{ mt: 2 }}
+                            >
+                                {role === 'admin' ? 'Start Live Class' : 'Join Class'}
                             </Button>
                         </Box>
                      )}
@@ -308,6 +334,17 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
                  {isLive && (
                     <Box sx={{ position: 'absolute', top: 16, right: 16, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
                         <Chip label={`👥 ${connectedCount} `} sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white', borderRadius: 1 }} />
+                        <IconButton 
+                            size="small" 
+                            onClick={() => {
+                                const url = window.location.href;
+                                navigator.clipboard.writeText(url);
+                                alert('Link copied to clipboard!'); 
+                            }}
+                            sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' } }}
+                        >
+                            <Share />
+                        </IconButton>
                         <IconButton 
                             size="small" 
                             onClick={() => setShowGrid(true)}

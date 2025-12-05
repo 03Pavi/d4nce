@@ -23,8 +23,11 @@ const Page = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
       >
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <img src="/cozy-logo.svg" alt="CozyTribe Logo" style={{ width: 120, height: 120 }} />
+          </Box>
           <Typography variant="h2" fontWeight="bold" sx={{ mb: 1, textAlign: 'center', fontSize: { xs: '2.5rem', md: '3.75rem' } }}>
-            D4NCE <span style={{ color: '#ff0055' }}>PLATFORM</span>
+            COZYTRIBE <span style={{ color: '#ff0055' }}>PLATFORM</span>
           </Typography>
           <Typography variant="h6" sx={{ mb: 6, textAlign: 'center', color: '#a0a0a0', fontSize: { xs: '1rem', md: '1.25rem' } }}>
             The ultimate video dance class experience.

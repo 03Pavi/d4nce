@@ -13,7 +13,13 @@ const PAGE_SIZE = 10;
 
 
 
-export const ReelsFeed = () => {
+interface ReelsFeedProps {
+  communityId?: string;
+  tags?: string[];
+  disableUrlSync?: boolean;
+}
+
+export const ReelsFeed = ({ communityId, tags, disableUrlSync = false }: ReelsFeedProps) => {
     const [activeIndex, setActiveIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
     const [reels, setReels] = useState<any[]>([]);
@@ -43,7 +49,7 @@ export const ReelsFeed = () => {
     // Initial fetch
     useEffect(() => {
       fetchUserAndReels();
-    }, []);
+    }, [communityId]);
 
     // Realtime subscription for new reels
     useEffect(() => {
@@ -118,7 +124,7 @@ export const ReelsFeed = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [supabase]);
+    }, [supabase, communityId]);
 
     const fetchUserAndReels = async () => {
         setLoading(true);
@@ -130,7 +136,8 @@ export const ReelsFeed = () => {
             setUserId(user?.id || null);
 
             // 2. Get Reels with pagination
-            const { data: reelsData, error: reelsError } = await supabase
+            // 2. Get Reels with pagination
+            let query = supabase
               .from('reels')
               .select(`
                 *,
@@ -141,6 +148,16 @@ export const ReelsFeed = () => {
               `)
               .order('created_at', { ascending: false })
               .range(0, PAGE_SIZE - 1);
+
+            if (communityId) {
+                // Community Feed: Show reels uploaded to this community
+                query = query.eq('community_id', communityId);
+            } else {
+                // Global Feed: Show only reels NOT associated with any community
+                query = query.is('community_id', null);
+            }
+
+            const { data: reelsData, error: reelsError } = await query;
 
             if (reelsError) throw reelsError;
 
@@ -187,7 +204,7 @@ export const ReelsFeed = () => {
         const end = start + PAGE_SIZE - 1;
 
         try {
-            const { data: moreReels, error } = await supabase
+            let query = supabase
                 .from('reels')
                 .select(`
                     *,
@@ -198,6 +215,16 @@ export const ReelsFeed = () => {
                 `)
                 .order('created_at', { ascending: false })
                 .range(start, end);
+
+            if (communityId) {
+                // Community Feed
+                query = query.eq('community_id', communityId);
+            } else {
+                // Global Feed
+                query = query.is('community_id', null);
+            }
+
+            const { data: moreReels, error } = await query;
 
             if (error) throw error;
 
@@ -292,7 +319,7 @@ export const ReelsFeed = () => {
                 setActiveIndex(index);
                 // Update URL without reload
                 const reel = reels[index];
-                if (reel) {
+                if (reel && !disableUrlSync && !communityId) {
                     const newUrl = new URL(window.location.href);
                     newUrl.searchParams.set('reelId', reel.id);
                     window.history.replaceState({}, '', newUrl.toString());
@@ -314,16 +341,18 @@ export const ReelsFeed = () => {
             if (containerRef.current) {
                 containerRef.current.scrollTop = index * containerRef.current.clientHeight;
             }
-            // Update URL
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('reelId', reelId);
-            window.history.replaceState({}, '', newUrl.toString());
+            // Update URL only if sync is enabled
+            if (!disableUrlSync && !communityId) {
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('reelId', reelId);
+                window.history.replaceState({}, '', newUrl.toString());
+            }
         }
     };
 
     // Scroll to reel from URL on load OR set URL to first reel
     useEffect(() => {
-        if (!loading && reels.length > 0) {
+        if (!loading && reels.length > 0 && !disableUrlSync && !communityId) {
             const params = new URLSearchParams(window.location.search);
             const reelId = params.get('reelId');
             if (reelId) {
@@ -344,7 +373,7 @@ export const ReelsFeed = () => {
                 }
             }
         }
-    }, [loading, reels]);
+    }, [loading, reels, disableUrlSync, communityId]);
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react'
-import { Box, Button, TextField, Typography, Alert, MenuItem, InputAdornment, IconButton, Divider, CircularProgress } from '@mui/material'
+import { Box, Button, TextField, Typography, Alert, MenuItem, InputAdornment, IconButton, Divider, CircularProgress, Autocomplete, Chip } from '@mui/material'
 import { signup, signInWithGoogle } from '@/app/auth/actions'
 import { Visibility, VisibilityOff } from '@mui/icons-material'
 import GoogleIcon from '@mui/icons-material/Google'
@@ -12,6 +12,11 @@ const SignupPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [role, setRole] = useState('student')
+  const [communityName, setCommunityName] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+
+  const predefinedTags = ['Education', 'Choreography', 'Performance', 'Competition', 'Social', 'Fitness', 'Hip Hop', 'Ballet', 'Contemporary']
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true)
@@ -34,6 +39,12 @@ const SignupPage = () => {
     setError('')
 
     const formData = new FormData(event.currentTarget)
+    
+    if (role === 'admin') {
+      formData.append('communityName', communityName)
+      formData.append('tags', JSON.stringify(tags))
+    }
+
     const result = await signup(formData)
     
     if (result?.error) {
@@ -108,14 +119,17 @@ const SignupPage = () => {
             border: '1px solid rgba(255, 255, 255, 0.1)'
         }}
       >
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <img src="/cozy-logo.svg" alt="CozyTribe Logo" style={{ width: 60, height: 60 }} />
+        </Box>
         <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold', textAlign: 'center' }}>
-            Join <span style={{ color: 'var(--primary)' }}>D4NCE</span>
+            Join <span style={{ color: 'var(--primary)' }}>CozyTribe</span>
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         {/* Google Sign-In Button */}
-        <Button
+        {/* <Button
           type="button"
           variant="outlined"
           fullWidth
@@ -149,7 +163,7 @@ const SignupPage = () => {
           <Typography variant="body2" sx={{ color: 'var(--text-secondary)', px: 1 }}>
             or
           </Typography>
-        </Divider>
+        </Divider> */}
 
         <TextField
             name="fullName"
@@ -206,7 +220,8 @@ const SignupPage = () => {
             label="I am a..."
             fullWidth
             margin="normal"
-            defaultValue="student"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
             slotProps={{
               htmlInput:{
                 form: {
@@ -218,6 +233,49 @@ const SignupPage = () => {
             <MenuItem value="student">Student</MenuItem>
             <MenuItem value="admin">Instructor (Admin)</MenuItem>
         </TextField>
+
+        {role === 'admin' && (
+          <>
+            <TextField
+              name="communityName"
+              label="Community Name"
+              fullWidth
+              margin="normal"
+              value={communityName}
+              onChange={(e) => setCommunityName(e.target.value)}
+              required
+              helperText="The name of your dance community or school"
+            />
+            
+            <Autocomplete
+              multiple
+              freeSolo
+              options={predefinedTags}
+              value={tags}
+              onChange={(event, newValue) => {
+                setTags(newValue);
+              }}
+              renderTags={(value: readonly string[], getTagProps) =>
+                value.map((option: string, index: number) => {
+                  const { key, ...tagProps } = getTagProps({ index });
+                  return (
+                    <Chip variant="outlined" label={option} key={key} {...tagProps} />
+                  );
+                })
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  variant="outlined"
+                  label="Community Tags"
+                  placeholder="Select or type tags"
+                  margin="normal"
+                  helperText="Press enter to add custom tags"
+                />
+              )}
+            />
+          </>
+        )}
 
         <Button 
             type="submit" 

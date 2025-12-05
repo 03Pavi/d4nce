@@ -1,11 +1,11 @@
 {
-  "name": "D4nce",
+  "name": "CozyTribe",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.js",
     "lint": "next lint"
   },
   "dependencies": {
@@ -35,12 +35,16 @@
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0",
     "sass": "^1.85.1",
+    "socket.io": "4.8.1",
+    "socket.io-client": "4.8.1",
     "uuid": "13.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.17.23",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.0.7",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2"
   }
