@@ -46,7 +46,7 @@ export const LiveSession = ({ role, isPaid = false, hasPurchased = false, sessio
         fetchProfile();
     }, [role]);
 
-    const { localStream, remoteStreams, isConnected, chatMessages, sendChatMessage, connectedCount } = useLiveStream(isLive ? role : 'student', sessionId, userName, isLive);
+    const { localStream, remoteStreams, isConnected, chatMessages, sendChatMessage, connectedCount } = useLiveStream(role, sessionId, userName, isLive);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [pinnedStreamId, setPinnedStreamId] = useState<string | null>(null);
     const [showGrid, setShowGrid] = useState(false);

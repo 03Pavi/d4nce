@@ -68,12 +68,21 @@ export default function RootLayout({
               {`
                 window.OneSignalDeferred = window.OneSignalDeferred || [];
                 OneSignalDeferred.push(async function(OneSignal) {
+                  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                  
+                  console.log('🔔 Initializing OneSignal...', {
+                    hostname: window.location.hostname,
+                    isLocalhost: isLocalhost
+                  });
+                  
                   await OneSignal.init({
                     appId: "af9c3011-df39-423c-a2fa-832d24775f98",
-                    allowLocalhostAsSecureOrigin: true,
+                    allowLocalhostAsSecureOrigin: isLocalhost,
                     serviceWorkerPath: '/sw.js',
                     serviceWorkerParam: { scope: '/' },
                   });
+                  
+                  console.log('✅ OneSignal initialized successfully');
                 });
               `}
             </Script>

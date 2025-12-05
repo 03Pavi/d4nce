@@ -24,6 +24,8 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
     const init = async () => {
       if (typeof window === 'undefined') return;
 
+      console.log('🎥 Initializing live stream:', { role, channelName, userName, enabled });
+
       try {
         // 1. Get Local Stream
         try {
@@ -150,6 +152,10 @@ export const useLiveStream = (role: 'admin' | 'student', channelName: string = '
       if (!peerRef.current || connectionsRef.current.has(targetPeerId)) return;
 
       console.log(`Calling peer ${targetPeerId}...`);
+
+      if (!stream) {
+        console.warn(`⚠️ Attempting to call peer ${targetPeerId} without local stream!`);
+      }
 
       // If no stream, create dummy? PeerJS needs a stream for .call usually?
       // Actually .call(id, stream) - stream is optional in some versions but usually required for video call.

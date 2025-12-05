@@ -15,8 +15,9 @@ interface NotificationOptions {
 
 export const sendNotification = async (message: string, options: NotificationOptions = {}) => {
   if (!ONESIGNAL_API_KEY) {
-    console.warn("OneSignal API Key not found. Please set ONESIGNAL_API_KEY in .env.local");
-    return;
+    const errorMsg = "❌ OneSignal API Key not found. Please set ONESIGNAL_API_KEY in environment variables.";
+    console.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
   const payload: any = {
@@ -60,10 +61,20 @@ export const sendNotification = async (message: string, options: NotificationOpt
         'Authorization': `Basic ${ONESIGNAL_API_KEY}`
       }
     });
-    console.log("Notification sent:", response.data);
+    console.log("✅ Notification sent successfully:", {
+      id: response.data.id,
+      recipients: response.data.recipients,
+      message: message.substring(0, 50)
+    });
     return response.data;
   } catch (error: any) {
-    console.error("Error sending notification:", error.response?.data || error.message);
+    console.error("❌ Error sending notification:", {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      payload: { ...payload, app_id: '***' } // Hide app_id in logs
+    });
     throw error;
   }
 };
